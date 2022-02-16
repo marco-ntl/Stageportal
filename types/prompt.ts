@@ -1,27 +1,21 @@
-export type Question = {
-    type: PromptTypes | PromptCallback,
-    name: PromptFields | PromptCallback,
-    message: String | PromptCallback,
+export type Prompt = {
+    type: PromptTypes /*| PromptCallback*/,
+    name: String /*| PromptCallback*/,
+    message: String /*| PromptCallback*/,
     validate?: (value:string) => string | boolean
-    initial?: String | PromptCallback | Promise<string>
-    format?: PromptCallback | Promise<string>,
-    onRender?: PromptCallback
-    onState?: PromptCallback
+    initial?: String | Promise<string> /*| PromptCallback | */
+    format?: /*PromptCallback |*/ Promise<string>,
+    //onRender?: PromptCallback
+    //onState?: PromptCallback
     stdin?: ReadableStream
     stdout?: WritableStream
   }
 
-export interface PromptCallback {
+/*export interface PromptCallback {
     previous:string,
     values:{[key in PromptFields]?:string},
     prompt:object
-}
-
-export enum PromptFields {
-    username = 'username',
-    password = 'pwd',
-    otp = 'otp'
-}
+}*/
 
 export enum PromptTypes {
     text = 'text',
