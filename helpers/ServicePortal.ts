@@ -87,7 +87,7 @@ async function GetInputToPromptMappingFromValue(value:INPUT_TYPES | PromptTypes)
 
 export class ServicePortal {
     static async Open(page: Page | Browser): Promise<Page> {
-        if ("newPage" in page)   //Si page est de type "Browser"
+        if (isBrowser(page))   //Si page est de type "Browser"
             page = await page.newPage();
 
         await page.setCookie(langCookie);
@@ -198,12 +198,6 @@ export class ServicePortal {
 
 
     static async GetInputType(input: ElementHandle): Promise<INPUT_TYPES> {
-        const TypeArr = [
-            [INPUT_TYPES.Radio, Selectors.INPUT_RADIO],
-            [INPUT_TYPES.Search, Selectors.INPUT_SEARCH],
-            [INPUT_TYPES.Select, Selectors.INPUT_SELECT],
-            [INPUT_TYPES.Text, Selectors.INPUT_TEXT],
-        ]
         return await input.evaluate(
             function (el: Element, types: [INPUT_TYPES, Selectors][]): INPUT_TYPES {
                 for (let type in types) {
@@ -211,7 +205,7 @@ export class ServicePortal {
                         return (type[0] as unknown as INPUT_TYPES) //Obligé de convertir type en unkown d'abord, aucune idée de pourquoi mais marre de me casser la tête
                 }
                 return INPUT_TYPES.Unknown
-            }, input, TypeArr)
+            }, input, TYPE_FOR_INPUT)
     }
 
 

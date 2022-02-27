@@ -36,9 +36,8 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                //@TODO Finir fonction pour GeneratePromptFromInputs
-                //If type == form et aucun input trouvé, select avec les boutons
-
+                //@TODO Finir fonction Fillform
+                    FillForm(page)
                 default:
                     break;
             }
