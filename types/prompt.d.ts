@@ -9,7 +9,7 @@ export type Prompt = {
     //onState?: PromptCallback
     stdin?: ReadableStream
     stdout?: WritableStream
-    choices?:[] | void[]
+    choices?:Choice[] | void[]
 
   }
 

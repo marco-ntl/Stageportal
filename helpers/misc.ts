@@ -2,6 +2,26 @@ import { ElementHandle, Page } from "puppeteer";
 //Miscellaneous helpers
 export class Misc {
 
+    static async GetTextFromElement(element: ElementHandle | null):Promise<string|false>{
+        if(!element)
+            return false
+
+        const result = element.evaluate(el => el.textContent)
+
+        if(typeof result !== "string")
+            return false
+            
+        return result
+    }
+
+    static async GetTextFromElements(elements: ElementHandle<Element>[]): Promise<(string | false)[]>{
+        const result:(string|false)[] = []
+        for(let elem of elements){
+            result.push(await this.GetTextFromElement(elem))
+        }
+        return result
+    }
+
     static async WaitForLoad(page: Page) {
         await page.waitForNavigation({ waitUntil: "domcontentloaded" })
     }
