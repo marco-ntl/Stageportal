@@ -9,6 +9,8 @@ export type Prompt = {
     //onState?: PromptCallback
     stdin?: ReadableStream
     stdout?: WritableStream
+    choices?:[] | void[]
+
   }
 
 /*export interface PromptCallback {
@@ -30,4 +32,9 @@ export enum PromptTypes {
     autocompleteMultiselect = 'autocompleteMultiselect',
     autocomplete = 'autocomplete',
     date = 'date',
+}
+
+export type Choice = {
+    title:string,
+    value?:string|number|object
 }
