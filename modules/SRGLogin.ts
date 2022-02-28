@@ -17,7 +17,7 @@ class SRGLogin implements IModule {
     }
     browser?: Browser;
     page?: Page;
-    hidden = true;
+    hidden = true; //Est-ce que le module doit être affiché à l'utilisateur
     async run(browser:Browser, page:Page): Promise<void> {
         this.browser = browser;
         this.page = page;
@@ -80,7 +80,7 @@ enum PromptFields {
 enum URLs {
     SRG_AUTH = "auth.app.srgssr.ch",
     SERVICE_PORTAL = "https://serviceportal.srgssr.ch"
-    //@TODO centralize URLs
+    //@TODO centralize URLs???
 }
 
 enum Selectors {
