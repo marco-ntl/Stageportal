@@ -36,7 +36,6 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                //@TODO Finir fonction Fillform
                     ServicePortal.FillForm(page)
                     const result = await ServicePortal.GoToFormNextStep(page)
                     if(typeof result !== "boolean")
@@ -45,8 +44,6 @@ class Manual implements IModule {
                 default:
                     break;
             }
-            //@TODO Finir fonction pour lister tuiles, créer autocomplete avec toutes les tuiles
-            //@TODO Finir GeneratePromptFromInputs, implémenter navigation
         } while (!page.url().includes(URLs.HOME_PAGE))
     }
 }

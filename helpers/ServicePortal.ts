@@ -257,22 +257,6 @@ export class ServicePortal {
     }
 
     static async FillForm(page: Page): Promise<void> {
-
-        //@TODO Finish this
-        //All inputs -> 'textarea, div.row.question input.form-control'
-        //Search (E.g user name) -> .selectCategoryInput
-        //  Get network request on submit -> get results as json :)
-        //Select (E.g device type) -> [readonly="readonly"]
-        //  Values -> $('.dropdown-menu').children()
-        //Text (Single line, textarea) -> [data-outname="String"]
-        //Radio -> [type="radio"]
-        //Button next -> ng-click="nextPage()"
-        //Button submit -> [ng-click="submitForm()"] 
-        //Get all inputs
-        //for each input -> get type
-        //generate prompt for input type
-        //??????
-        //profit
         let i = 0,
             input: ElementHandle<Element> | ElementHandle<Element>[] | false,
             title: string | false,
