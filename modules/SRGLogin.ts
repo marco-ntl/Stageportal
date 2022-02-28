@@ -21,7 +21,7 @@ class SRGLogin implements IModule {
     async run(browser:Browser, page:Page): Promise<void> {
         this.browser = browser;
         this.page = page;
-        await ServicePortal.Open(page)
+        await page.goto(URLs.SERVICE_PORTAL)
         if (this.isSSRLogin()) {
             await this.SSRLogin()
         }
@@ -78,7 +78,9 @@ enum PromptFields {
 }
 
 enum URLs {
-    SRG_AUTH = "auth.app.srgssr.ch"
+    SRG_AUTH = "auth.app.srgssr.ch",
+    SERVICE_PORTAL = "https://serviceportal.srgssr.ch"
+    //@TODO centralize URLs
 }
 
 enum Selectors {
