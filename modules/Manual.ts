@@ -31,14 +31,16 @@ class Manual implements IModule {
                 case LAYOUT_TYPES.Tiles:
                     let tiles = await ServicePortal.GetAllTiles(page);
                     (this.promptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(tiles)
-                    let userChoice = await prompts(this.promptsTemplate.SELECT_TILE)
-                    await Misc.ClickAndWaitForSelector(page, userChoice[PromptFields.TILES], Selectors.IS_LOADING, true) //@TODO N'arrive pas à ouvrir le choix de l'utilisateur
+                    let userChoice: { [index:string]:ElementHandle<Element> } = await prompts(this.promptsTemplate.SELECT_TILE)
+                    //await ServicePortal.UnfoldAllTiles(page) //La page ne détecte pas toujours un clic sur un élément sensé être caché
+                    //await Misc.ClickAndWaitForSelector(page, '#' + userChoice[PromptFields.TILES], Selectors.IS_LOADING, true) //@TODO N'arrive pas à ouvrir le choix de l'utilisateur
+                    await Misc.ClickAndWaitForNetworkIdle(page, '#' + userChoice[PromptFields.TILES])
                     break;
 
                 case LAYOUT_TYPES.Form:
-                    ServicePortal.FillForm(page)
+                    await ServicePortal.FillForm(page)
                     const result = await ServicePortal.GoToFormNextStep(page)
-                    if(typeof result !== "boolean")
+                    if(typeof result === "string")
                         console.log("Créé ServiceRequest " + result)
                     break;
                 default:

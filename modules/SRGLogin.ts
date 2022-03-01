@@ -54,7 +54,7 @@ class SRGLogin implements IModule {
         const loginInfo: {[key in PromptFields]:string} = await prompts(this.promptsTemplate.AUTH_SRG)
         await inputUsername.type(loginInfo[PromptFields.username]);
         await inputPWD.type(loginInfo[PromptFields.password]);
-        await Misc.ClickAndWaitForLoad(page, inputSubmit);
+        await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
       
         //Demande le One Time Password (Code SMS) à l'utilisateur
         const inputOTP: ElementHandle | null = await page.$(Selectors.AUTH_OTP);
@@ -66,7 +66,7 @@ class SRGLogin implements IModule {
           
         const OTP = await prompts(this.promptsTemplate.AUTH_SRG_OTP)
         await inputOTP.type(OTP[PromptFields.otp]);
-        await Misc.ClickAndWaitForLoad(page, inputSubmit);
+        await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
       }
 
 }

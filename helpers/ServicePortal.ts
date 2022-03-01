@@ -13,14 +13,47 @@ import { SoftwareSearchResponse } from "../types/SoftwareSearchResponse";
 
 const TEXT_INPUT_REQUIRED = " (Nécessaire)"
 const TEXT_INPUT_INVALID = "Merci d'entre au moins 3 caractères"
+const TILE_ID = 'SPtile'
 
+export enum Selectors {
+    IS_LOADING = '.loading-center',
+    TILE_TITLE = 'h1,h2,h3,h4,b', //Le titre d'une tile est toujours en gras
+    HOME_TILE_TITLE = '.card-title.ro-title',
+    TILE = '.card-block',
+    FORM = '[name="requestForm"]', // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
+    //MAIN_FORM_INPUT = 'textarea:visible, div.row.question input.form-control:visible, [type="radio"]:visible',
+    MAIN_FORM_INPUT = '.active div.row.question',
+    MAIN_FORM_INPUT_TITLE = '.active .step-content div.row.question .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
+    INPUT_SEARCH = '.selectCategoryInput',
+    INPUT_SELECT = '.selectCategory[readonly="readonly"]',
+    INPUT_SELECT_VALUES = 'li a',
+    INPUT_TEXT = '[data-outname="String"]',
+    INPUT_RADIO = '[type="radio"]',
+    BUTTON_NEXT = '.active [ng-click="nextPage()"]',
+    BUTTON_SUBMIT = '.active [ng-click="submitForm()"]',
+    CLASS_INPUT_REQUIRED = '.required-field',
+    POPUP_SR_NUMBER = ".modal-dialog a",
+    POPUP_CLOSE_BUTTON = ".modal-dialog button",
+    TILE_FOLD_ELEM = '.collapse-item-bl.hidden-content'
+}
+
+export class URLs {
+    static SERVICE_PORTAL = "https://serviceportal.srgssr.ch"
+    static HOME_PAGE = URLs.SERVICE_PORTAL + "/EndUser/Items/Home"
+}
+
+export enum LAYOUT_TYPES {
+    Form = 'Form',
+    Tiles = 'Tiles',
+    Unknown = 'Unknown',
+}
 export enum INPUT_TYPES {
-    Search = 0,
-    Select,
-    Text,
-    Radio,
-    Button,
-    Unknown
+    Search = 'Search',
+    Select = 'Select',
+    Text = 'Text',
+    Radio = 'Radio',
+    Button = 'Button',
+    Unknown = 'Unknown'
 }
 
 /*interface INPUT_SEARCH {
@@ -31,6 +64,13 @@ const TYPE_FOR_INPUT: [INPUT_TYPES, PromptTypes][] = [
     [INPUT_TYPES.Select, PromptTypes.select],
     [INPUT_TYPES.Search, PromptTypes.text],
     [INPUT_TYPES.Text, PromptTypes.text],
+]
+
+const SELECTORS_FOR_TYPES:[Selectors, INPUT_TYPES][] = [
+    [Selectors.INPUT_RADIO, INPUT_TYPES.Radio],
+    [Selectors.INPUT_SELECT, INPUT_TYPES.Select],
+    [Selectors.INPUT_SEARCH, INPUT_TYPES.Search],
+    [Selectors.INPUT_TEXT, INPUT_TYPES.Text],
 ]
 
 //Code récupéré dans node_modules/@types/puppeteer/index.d.ts
@@ -76,7 +116,7 @@ function GeneratePredicateFunc(elemToMatch: any) {
         if (!Array.isArray(elems))
             elems = [elems]
 
-        for (let elem in elems) {
+        for (let elem of elems) {
             if (elem === elemToMatch)
                 return true
         }
@@ -144,66 +184,78 @@ export class ServicePortal {
         const title = await Promise.all(elems.map(async el => await Misc.GetTextFromElement(el)))
         if (!title)
             return false
-        return title[0]
+        if (!index)
+            return title[0]
+        else
+            return title[index]
     }
 
     static async GetMatchingElements(page: Page, selector: string, index: false | number = false): Promise<ElementHandle<Element>[] | false> {
-        const result = await page.$$(selector);
+
+        let result = await page.$$(selector)
+
         if (result.length <= 0)
             return false
         if (index)
             return [result[index]]
         return result
     }
+
+    /*static async UnfoldAllTiles(page:Page){
+        /*let headers = await page.$$(Selectors.TILE_FOLD_ELEM)
+        headers.forEach(x => x
+        page.click()
+    }*/
+
     static async FillSearchInputAndGetResults(page: Page, input: ElementHandle<Element>, value: string): Promise<false | string[][]> {
         let result: boolean | string[][] = false
         input.type(value);
         page.setRequestInterception(true)
         page.on('response', async function (response: HTTPResponse) {
-                let rawResponse = await response.json(),
-                    parsedResponse,
-                    GetRelevantData:(response:any) => string[][]
+            let rawResponse = await response.json(),
+                parsedResponse,
+                GetRelevantData: (response: any) => string[][]
 
-                if("SerialNumber" in rawResponse){
-                    parsedResponse = rawResponse as ComputerSearchResponse
-                    GetRelevantData = function(response:ComputerSearchResponse):string[][]{
-                        let result = []
-                        for(let item of response.Items){
-                            result.push([item.DisplayName.Value, item.Status.Value, item.Region.Value])
-                        }
-                        return result
+            if ("SerialNumber" in rawResponse) {
+                parsedResponse = rawResponse as ComputerSearchResponse
+                GetRelevantData = function (response: ComputerSearchResponse): string[][] {
+                    let result = []
+                    for (let item of response.Items) {
+                        result.push([item.DisplayName.Value, item.Status.Value, item.Region.Value])
                     }
+                    return result
                 }
-                else if("UserPrincipalName" in rawResponse){
-                    parsedResponse = rawResponse as PersonSearchResponse
-                    GetRelevantData = function(response:PersonSearchResponse):string[][]{
-                        let result = []
-                        for(let item of response.Items){
-                            result.push([item.DisplayName.Value, item.UserLogonName.Value])
-                        }
-                        return result
+            }
+            else if ("UserPrincipalName" in rawResponse) {
+                parsedResponse = rawResponse as PersonSearchResponse
+                GetRelevantData = function (response: PersonSearchResponse): string[][] {
+                    let result = []
+                    for (let item of response.Items) {
+                        result.push([item.DisplayName.Value, item.UserLogonName.Value])
                     }
+                    return result
                 }
-                else if("Version" in rawResponse){
-                    parsedResponse = rawResponse as SoftwareSearchResponse
-                    GetRelevantData = function(response:SoftwareSearchResponse):string[][]{
-                        let result = []
-                        for(let item of response.Items){
-                            if(item.ConfigItemHasPrice.Price1Amount === undefined)
-                                var price = 0
-                            else
-                                var price = item.ConfigItemHasPrice.Price1Amount.Value
-                            result.push([item.DisplayName.Value, item.Version.Value, item.Platform.Value, item.Region.Value, price.toString()])
-                        }
-                        return result
+            }
+            else if ("Version" in rawResponse) {
+                parsedResponse = rawResponse as SoftwareSearchResponse
+                GetRelevantData = function (response: SoftwareSearchResponse): string[][] {
+                    let result = []
+                    for (let item of response.Items) {
+                        if (item.ConfigItemHasPrice.Price1Amount === undefined)
+                            var price = 0
+                        else
+                            var price = item.ConfigItemHasPrice.Price1Amount.Value
+                        result.push([item.DisplayName.Value, item.Version.Value, item.Platform.Value, item.Region.Value, price.toString()])
                     }
+                    return result
                 }
-                else
-                    throw new Error("Unexpected response for search")
+            }
+            else
+                throw new Error("Unexpected response for search")
 
             if (rawResponse.Count >= 1) {
                 result = GetRelevantData(rawResponse)
-            }else
+            } else
                 result = true
         })
         while (!result) //@TODO Abort when waiting too long
@@ -211,13 +263,13 @@ export class ServicePortal {
         return result
     }
 
-    static async SetInputValue(page:Page, input: ElementHandle<Element> | ElementHandle<Element>[], value: boolean | string | ElementHandle):Promise<boolean|string[][]> {
+    static async SetInputValue(page: Page, input: ElementHandle<Element> | ElementHandle<Element>[], value: boolean | string | ElementHandle): Promise<boolean | string[][]> {
         if (!Array.isArray(input))
             input = [input]
 
         const inputType = await this.GetInputType(input[0])
         switch (inputType) {
-            case INPUT_TYPES.Radio:
+            case INPUT_TYPES.Radio: //@TODO Untested
                 if (typeof value !== "boolean")
                     throw new Error("Résultat du prompt inattendu. \"Booléen\" attendu.")
                 if (value)
@@ -226,34 +278,32 @@ export class ServicePortal {
                     input[1].click()
                 return true
 
-            case INPUT_TYPES.Select:
+            case INPUT_TYPES.Select: //@TODO Untested
                 if (!(value instanceof ElementHandle))
                     throw new Error("Résultat du prompt inattendu. \"ElementHandle\" attendu.")
                 value.click();
                 return true
 
-            case INPUT_TYPES.Text:
+            case INPUT_TYPES.Text: //@TODO Untested
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 input[0].type(value)
                 return true
 
-            case INPUT_TYPES.Search:
+            case INPUT_TYPES.Search: //@TODO Borken
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 return await this.FillSearchInputAndGetResults(page, input[0], value)
 
             case INPUT_TYPES.Unknown:
-                console.log("Unknown input")
-                return false
             default:
                 console.log("Unknown input")
                 return false
         }
     }
 
-    static async IsInputRequired(input:ElementHandle):Promise<boolean>{
-        return await input.evaluate(el => (el.querySelector(Selectors.CLASS_INPUT_REQUIRED) !== null))
+    static async IsInputRequired(input: ElementHandle): Promise<boolean> {
+        return await input.evaluate((el, selector) => (el.querySelector(selector) !== null), Selectors.CLASS_INPUT_REQUIRED)
     }
 
     static async FillForm(page: Page): Promise<void> {
@@ -261,84 +311,94 @@ export class ServicePortal {
             input: ElementHandle<Element> | ElementHandle<Element>[] | false,
             title: string | false,
             result: Prompt[] = []
+        await page.waitForTimeout(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
         while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retournera toujours la valeur assignée
             title = (await ServicePortal.GetFormTitle(page, i))
             if (!title)
                 throw new Error("Pas trouvé le titre de l'input")
-    
+
             let prompt = await ServicePortal.CreatePromptFromInput(input, title, 'TMP')
-            let answer: boolean|string|ElementHandle<Element> = (await prompts(prompt))['TMP']
-    
-            if(prompt.type == PromptTypes.toggle){
+            let answer: boolean | string | ElementHandle<Element> = (await prompts(prompt))['TMP']
+
+            if (prompt.type == PromptTypes.toggle) {
                 let tmp = (await ServicePortal.GetFormInput(page, ++i))
-                if(!tmp)
+                if (!tmp)
                     throw new Error("Pas trouvé le second radio input")
                 input = [input, tmp]
             }
-            let response = await this.SetInputValue(page, input, answer)
+            let response = await this.SetInputValue(page, input, answer) //@TODO -> L'input ne se set pas
 
             //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
-            if(await this.GetInputTypeFromPrompt(prompt.type) == INPUT_TYPES.Search && Array.isArray(response)){ 
-                    let choices:Choice[] = []
-                    const lines = Misc.FormatStringRows(response)
-                    for(let i = 0; i < response.length;i++)
-                        choices.push({title:lines[i],value:response[i][0]}) //@TODO Trouver quelque chose de plus solide. Actuellement, il faut que la valeur demandée soit le premier élement de chaque ligne
+            if (await this.GetInputTypeFromPrompt(prompt.type) == INPUT_TYPES.Search && Array.isArray(response)) {
+                let choices: Choice[] = []
+                const lines = Misc.FormatStringRows(response)
+                for (let i = 0; i < response.length; i++)
+                    choices.push({ title: lines[i], value: response[i][0] }) //@TODO Trouver quelque chose de plus solide. Actuellement, il faut que la valeur demandée soit le premier élement de chaque ligne
 
-                    if(Array.isArray(input))
-                        throw new Error("Unexpected : Input is array, should be single value")
+                if (Array.isArray(input))
+                    throw new Error("Unexpected : Input is array, should be single value")
 
-                    prompt = await ServicePortal.CreatePromptFromInput(input,title, 'TMP', choices)
-                    answer = (await prompts(prompt))['TMP']
-                    await this.SetInputValue(page, input, answer)
+                prompt = await ServicePortal.CreatePromptFromInput(input, title, 'TMP', choices)
+                answer = (await prompts(prompt))['TMP']
+                await this.SetInputValue(page, input, answer) 
             }
             i++
         }
 
     }
-    
-    static async SubmitAndGetSR(page:Page, btnSubmit:ElementHandle):Promise<string|false>{
-        btnSubmit.click()
+
+    static async SubmitAndGetSR(page: Page, elemSelector: string): Promise<string | false> {
+        await page.click(elemSelector)
         const srElem = await page.waitForSelector(Selectors.POPUP_SR_NUMBER)
-        if(!srElem)
+        if (!srElem)
             throw new Error("Couldn't find SR number")
         const num = await Misc.GetTextFromElement(srElem)
-        if(!num)
+        if (!num)
             throw new Error("Couldn't get number from modal element")
         const closeBtn = await page.$(Selectors.POPUP_CLOSE_BUTTON)
-        if(!closeBtn)
+        if (!closeBtn)
             throw new Error("Couldn't find the button to close the new SR popup")
-        await Misc.ClickAndWaitForLoad(page,closeBtn)
+        await Misc.ClickAndWaitForLoad(page, Selectors.POPUP_CLOSE_BUTTON)
 
         return num
     }
 
-    static async GoToFormNextStep(page:Page):Promise<boolean|string>{
+    static async GoToFormNextStep(page: Page): Promise<boolean | string> {
         const nextStepBtn = await page.$(Selectors.BUTTON_NEXT)
-        if(nextStepBtn){
-            await Misc.ClickAndWaitForLoad(page,nextStepBtn)
+        if (nextStepBtn) {
+            await Misc.ClickAndWaitForLoad(page, Selectors.BUTTON_NEXT)
             return true
         }
         const submitBtn = await page.$(Selectors.BUTTON_SUBMIT)
 
-        if(!submitBtn)
+        if (!submitBtn)
             return false
-        return await this.SubmitAndGetSR(page, submitBtn)
+        return await this.SubmitAndGetSR(page, Selectors.BUTTON_SUBMIT)
     }
 
     static async GetChoicesFromTiles(tiles: ElementHandle<Element>[]): Promise<Choice[]> {
         const result: Choice[] = [];
+        let text: string | false,
+            value: string,
+            i = 0
         for (let tile of tiles) {
-            const text = await ServicePortal.GetTitleFromTile(tile);
+            text = await ServicePortal.GetTitleFromTile(tile);
+            if (!text)
+                throw new Error("Can't get title from tile")
+
+            value = TILE_ID + i
+            tile.evaluate((el, value) => el.id = value, value)
             if (!text) {
                 throw new Error("Can't find tile text")
             }
-            result.push({ title: text, value: tile });
+            result.push({ title: text, value: value });
+            i++
         }
         return result;
     }
 
-    static async CreatePromptFromInput(input: ElementHandle, text: string, name: string, choices:Choice[] | undefined = undefined): Promise<Prompt> {
-        const inputType:INPUT_TYPES = await this.GetInputType(input)
+    static async CreatePromptFromInput(input: ElementHandle, text: string, name: string, choices: Choice[] | undefined = undefined): Promise<Prompt> {
+        const inputType: INPUT_TYPES = await this.GetInputType(input)
         const inputRquired = await this.IsInputRequired(input)
         if (!inputType)
             throw new Error("Pas trouvé le type de l'input")
@@ -353,36 +413,37 @@ export class ServicePortal {
                     return { title: text, value: elem }
                 }))
         }
-        let type:PromptTypes
+        let type: PromptTypes
 
-        if(inputType as INPUT_TYPES == INPUT_TYPES.Search && choices !== undefined)
+        if (inputType as INPUT_TYPES == INPUT_TYPES.Search && choices !== undefined)
             type = PromptTypes.autocomplete
-        else            
+        else
             type = await this.GetPromptTypeFromInput(inputType)
-
+        const shouldValidate = inputRquired && (inputType !== INPUT_TYPES.Radio && inputType !== INPUT_TYPES.Button && INPUT_TYPES.Unknown)
         return {
-            message: text + (inputRquired)?TEXT_INPUT_REQUIRED:'',
+            message: text + ((inputRquired) ? TEXT_INPUT_REQUIRED:''),
             name: name,
             type: type,
             choices: choices,
-            validate:(inputRquired && (inputType != (INPUT_TYPES.Radio | INPUT_TYPES.Button | INPUT_TYPES.Unknown)))?this.ValidateRequiredUserInput:undefined
+            validate: (shouldValidate) ? this.ValidateRequiredUserInput : undefined
         }
     }
 
-    static ValidateRequiredUserInput(value:string):boolean|string{
-        return (value.length >= 3)?true:TEXT_INPUT_INVALID
+    static ValidateRequiredUserInput(value: string): boolean | string {
+        return (value.length >= 3) ? true : TEXT_INPUT_INVALID
     }
 
     static async GetInputType(input: ElementHandle): Promise<INPUT_TYPES> {
         return await input.evaluate(
-            function (el: Element, types: [INPUT_TYPES, Selectors][]): INPUT_TYPES {
+            function (el: Element, types: [Selectors,INPUT_TYPES][], notFoundVal:INPUT_TYPES.Unknown): INPUT_TYPES {
                 for (let type of types) {
-                    let inputFound = el.querySelector(type[1])
-                    if (!inputFound)
-                        return type[0]
+                    let inputFound = el.querySelector(type[0])
+                    console.log(type + ' ' + inputFound)
+                    if (el.matches(type[0]) ||inputFound !== null)
+                        return type[1]
                 }
-                return INPUT_TYPES.Unknown
-            }, TYPE_FOR_INPUT)
+                return notFoundVal
+            }, SELECTORS_FOR_TYPES, INPUT_TYPES.Unknown)
     }
 
 
@@ -407,46 +468,4 @@ export class ServicePortal {
         return await Misc.GetTextFromElement(await el.$(Selectors.TILE_TITLE))
     }
 
-}
-
-//All inputs -> 'textarea, div.row.question input.form-control'
-//Search (E.g user name) -> .selectCategoryInput
-//  Get network request on submit -> get results as json :)
-//Select (E.g device type) -> [readonly="readonly"]
-//  Values -> $('.dropdown-menu').children()
-//Text (Single line, textarea) -> [data-outname="String"]
-//Radio -> [type="radio"]
-//Button next -> ng-click="nextPage()"
-//Button submit -> [ng-click="submitForm()"] 
-
-export enum Selectors {
-    IS_LOADING = '.loading-center',
-    TILE_TITLE = 'h1,h2,h3,h4,b', //Le titre d'une tile est toujours en gras
-    HOME_TILE_TITLE = '.card-title.ro-title',
-    TILE = '.card-block',
-    FORM = '[name="requestForm"]', // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
-    //MAIN_FORM_INPUT = 'textarea:visible, div.row.question input.form-control:visible, [type="radio"]:visible',
-    MAIN_FORM_INPUT = 'div.row.question',
-    MAIN_FORM_INPUT_TITLE = '.step-content div.row.question .wrap-bl > span:first-of-type:visible' /*'textarea, div.row.question input.form-control'*/,
-    INPUT_SEARCH = '.selectCategoryInput',
-    INPUT_SELECT = '.selectCategory:has([readonly="readonly"]):visible',
-    INPUT_SELECT_VALUES = 'li a',
-    INPUT_TEXT = '[data-outname="String"]',
-    INPUT_RADIO = '[type="radio"]',
-    BUTTON_NEXT = '[ng-click="nextPage()"]:visible',
-    BUTTON_SUBMIT = '[ng-click="submitForm()"]:visible',
-    CLASS_INPUT_REQUIRED = '.required-field',
-    POPUP_SR_NUMBER = ".modal-dialog:visible a",
-    POPUP_CLOSE_BUTTON = ".modal-dialog:visible button:visible"
-}
-
-export class URLs {
-    static SERVICE_PORTAL = "https://serviceportal.srgssr.ch"
-    static HOME_PAGE = URLs.SERVICE_PORTAL + "/EndUser/Items/Home"
-}
-
-export enum LAYOUT_TYPES {
-    Form,
-    Tiles,
-    Unknown
 }

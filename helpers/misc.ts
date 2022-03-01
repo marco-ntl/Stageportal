@@ -1,4 +1,5 @@
 import { ElementHandle, Page } from "puppeteer";
+
 const TAB_WIDTH = 4
 //Miscellaneous helpers
 export class Misc {
@@ -34,11 +35,13 @@ export class Misc {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    static async GetTextFromElement(element: ElementHandle | null): Promise<string | false> {
-        if (!element)
+    static async GetTextFromElement(element: ElementHandle<Element> | null): Promise<string | false> {
+        if (!element || element === undefined)
             return false
-
-        const result = await element.evaluate(el => el.textContent)
+        
+        const result = await element.evaluate(el => el?.textContent)
+        if(!result)
+            throw new Error("Couldn't get text from element " + await element.getProperty('id') + ' ' + await element.getProperty('class'))
 
         if (typeof result !== "string")
             return false
@@ -74,20 +77,27 @@ export class Misc {
         ]);
     }
 
-    static async ClickAndWaitForLoad(page: Page, el: ElementHandle) {
+    static async ClickAndWaitForLoad(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
         await Promise.all([
-            el.click(),
+            page.click(selector),
             this.WaitForLoad(page)
         ]);
     }
 
-    static async ClickAndWaitForSelector(page: Page, el: ElementHandle, selector: string, waitForHidden = false, timeout = DEFAULT_TIMEOUT) {
+    static async ClickAndWaitForSelector(page: Page, elementSelector:string, loadingSelector: string, waitForHidden = false, timeout = DEFAULT_TIMEOUT) {
         await Promise.all([
-            el.click(),
-            (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(selector, { timeout: timeout })
+            page.evaluate((selector) => (document.querySelector(selector) as HTMLElement).click(), elementSelector),
+            (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(loadingSelector, { timeout: timeout })
         ])
         if (waitForHidden)
-            await this.WaitForSelectorHidden(page, selector);
+            await this.WaitForSelectorHidden(page, loadingSelector);
+    }
+
+    static async ClickAndWaitForNetworkIdle(page: Page, elementSelector:string) {
+        await Promise.all([
+            page.evaluate((selector) => (document.querySelector(selector) as HTMLElement).click(), elementSelector),
+            page.waitForNavigation({waitUntil:"networkidle0"})
+        ])
     }
 
     static async WaitForSelectorHidden(page: Page, selector: string, timeout = DEFAULT_TIMEOUT) {
