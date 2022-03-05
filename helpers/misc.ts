@@ -1,4 +1,4 @@
-import { ElementHandle, Page } from "puppeteer";
+import { ElementHandle, Page, PageEmittedEvents } from "puppeteer";
 
 const TAB_WIDTH = 4
 //Miscellaneous helpers
@@ -9,10 +9,10 @@ export class Misc {
         for (let row = 0; row < values.length; row++) { //On récupère la longueur maximale de chaque colonne, afin de pouvoir les aligner correctement
             for (let col = 0; col < values[row].length; col++) {
                 if (maxWidthPerCol.length <= col)
-                    maxWidthPerCol.push(values[row][col].length)
+                    maxWidthPerCol.push(values[row][col].length + TAB_WIDTH) //On ajoute au moins une tabulation entre chaque colonne
                 else {
-                    if (values[row][col].length > maxWidthPerCol[col])
-                        maxWidthPerCol[col] = values[row][col].length
+                    if (values[row][col].length + TAB_WIDTH > maxWidthPerCol[col])
+                        maxWidthPerCol[col] = values[row][col].length + TAB_WIDTH
                 }
             }
         }
@@ -22,15 +22,26 @@ export class Misc {
         for (let row = 0; row < values.length; row++) { //On aligne chaque colonne
             rowAsStr = ''
             for (let col = 0; col < values[row].length; col++) {
-                nbTabs = Math.floor(maxWidthPerCol[col] - values[row][col].length) / TAB_WIDTH
-                nbSpaces = Math.floor(maxWidthPerCol[col] - values[row][col].length) % TAB_WIDTH
-                rowAsStr += values[row] + ' '.repeat(nbSpaces) + '\t'.repeat(nbTabs)
+                nbTabs = (maxWidthPerCol[col] - values[row][col].length) / TAB_WIDTH 
+                nbSpaces = TAB_WIDTH * (nbTabs % 1) //Eg. 4 * (2.25 % 1) => 4 * 0.25 => 1
+                rowAsStr += values[row][col] + ' '.repeat(nbSpaces) + ' '.repeat(TAB_WIDTH).repeat(nbTabs) //Apparemment le terminal de VS Code n'a pas de taille définie pour les tabs, donc il faut utiliser des espaces à la place de \t
             }
             results.push(rowAsStr)
         }
         return results
     }
+    static IncludesAtLeastOne(str:string, values:string[]):boolean{
+        for(let arg of values){
+            if(str.toLocaleLowerCase().includes(arg.toLocaleLowerCase()))
+                return true
+        }
+        return false
+    }
 
+    static IncludesAll(str:string, values:string[]):boolean{
+        return values.every((val) => str.toLocaleLowerCase().includes(val.toLocaleLowerCase()))
+    }
+    
     static sleep(ms: number) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -77,16 +88,25 @@ export class Misc {
         ]);
     }
 
+    static async ClickOnElem(page:Page, selector:string){
+        return await page.click(selector)
+    }
+
+    static async FocusElemAndType(page:Page, itemSelector:string, value:string){
+        await page.focus(itemSelector)
+        await page.keyboard.type(value)
+    }
+
     static async ClickAndWaitForLoad(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
         await Promise.all([
-            page.click(selector),
+            Misc.ClickOnElem(page, selector),
             this.WaitForLoad(page)
         ]);
     }
 
     static async ClickAndWaitForSelector(page: Page, elementSelector:string, loadingSelector: string, waitForHidden = false, timeout = DEFAULT_TIMEOUT) {
         await Promise.all([
-            page.evaluate((selector) => (document.querySelector(selector) as HTMLElement).click(), elementSelector),
+            Misc.ClickOnElem(page, elementSelector),
             (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(loadingSelector, { timeout: timeout })
         ])
         if (waitForHidden)
@@ -95,9 +115,32 @@ export class Misc {
 
     static async ClickAndWaitForNetworkIdle(page: Page, elementSelector:string) {
         await Promise.all([
-            page.evaluate((selector) => (document.querySelector(selector) as HTMLElement).click(), elementSelector),
+            Misc.ClickOnElem(page, elementSelector),
             page.waitForNavigation({waitUntil:"networkidle0"})
         ])
+    }
+
+    static async SetElemID(elem:ElementHandle<Element>, id:string):Promise<string>{
+        await elem.evaluate((el, value) => el.id = value, id)
+        return '#' + id
+    }
+
+    static async GetElemBySelector(page:Page, selector:string):Promise<ElementHandle<Element>|false>{
+        let elem = await page.$(selector)
+        if(!elem)
+            return false
+        return elem
+    }
+
+    static async GetMultipleElemsBySelector(page:Page, selector:string):Promise<ElementHandle<Element>[]|false>{
+        let elem = await page.$$(selector)
+        if(!elem || elem.length <= 0)
+            return false
+        return elem
+    }
+
+    static async ElementExists(page:Page, selector:string):Promise<boolean>{
+        return (await this.GetElemBySelector(page, selector) !== false)
     }
 
     static async WaitForSelectorHidden(page: Page, selector: string, timeout = DEFAULT_TIMEOUT) {

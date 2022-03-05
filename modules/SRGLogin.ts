@@ -43,29 +43,24 @@ class SRGLogin implements IModule {
         const page = (this.page as Page);
         await page.waitForSelector(Selectors.AUTH_SUBMIT);
       
-        const inputUsername: ElementHandle | null = await page.$(Selectors.AUTH_USERNAME)
-        const inputPWD: ElementHandle | null = await page.$(Selectors.AUTH_PWD)
-        let inputSubmit: ElementHandle | null = await page.$(Selectors.AUTH_SUBMIT)
-      
-        if (!inputUsername || !inputPWD || !inputSubmit)
+        if (!await Misc.ElementExists(page, Selectors.AUTH_USERNAME) ||
+            !await Misc.ElementExists(page, Selectors.AUTH_PWD ||
+            !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT)))
           throw new Error("Pas trouvé le champ username, mot de passe, ou le bouton envoyer")
       
         //Demande les informations de login à l'utilisateur
         const loginInfo: {[key in PromptFields]:string} = await prompts(this.promptsTemplate.AUTH_SRG)
-        await inputUsername.type(loginInfo[PromptFields.username]);
-        await inputPWD.type(loginInfo[PromptFields.password]);
+        await Misc.FocusElemAndType(page, Selectors.AUTH_USERNAME, loginInfo[PromptFields.username])
+        await Misc.FocusElemAndType(page, Selectors.AUTH_PWD, loginInfo[PromptFields.password])
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
-      
+        
+        if (!await Misc.ElementExists(page, Selectors.AUTH_OTP) ||
+            !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT))
+         throw new Error("Pas trouvé le champ Code SMS, ou le bouton envoyer") //@TODO Retry login quand pas trouvé le champ (pour l'instant crash quand nom d'utilisateur/mdp incorrect)
+
         //Demande le One Time Password (Code SMS) à l'utilisateur
-        const inputOTP: ElementHandle | null = await page.$(Selectors.AUTH_OTP);
-        inputSubmit = await page.$(Selectors.AUTH_SUBMIT)
-      
-        if (!inputOTP || !inputSubmit)
-          throw new Error("Pas trouvé le champ Code SMS, ou le bouton envoyer") //@TODO Retry login quand pas trouvé le champ (pour l'instant crash quand nom d'utilisateur/mdp incorrect)
-      
-          
         const OTP = await prompts(this.promptsTemplate.AUTH_SRG_OTP)
-        await inputOTP.type(OTP[PromptFields.otp]);
+        await Misc.FocusElemAndType(page, Selectors.AUTH_OTP, OTP[PromptFields.otp])
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
       }
 

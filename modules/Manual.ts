@@ -12,9 +12,10 @@ class Manual implements IModule {
     description = "Permet de naviguer le ServicePortal de façon textuelle";
     promptsTemplate = {
         SELECT_TILE: {
-            type: PromptTypes.autocomplete,
+            type: PromptTypes.autocomplete, //Meilleur recherche via le paramètre suggest
             name: PromptFields.TILES,
             message: "Sélectionner la tuile",
+            suggest:ServicePortal.SuggestSpaceSeparatedExactMatch
         }
     };
 
@@ -29,17 +30,18 @@ class Manual implements IModule {
             let layoutType = await ServicePortal.GetLayoutType(page)
             switch (layoutType) {
                 case LAYOUT_TYPES.Tiles:
-                    let tiles = await ServicePortal.GetAllTiles(page);
+                    await ServicePortal.UnfoldAllTiles(page)
+                    let tiles = await ServicePortal.GetAllTiles(page)
+                    if(!tiles)
+                        throw new Error("Pas réussi à récupérer les tiles");
                     (this.promptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(tiles)
-                    let userChoice: { [index:string]:ElementHandle<Element> } = await prompts(this.promptsTemplate.SELECT_TILE)
-                    //await ServicePortal.UnfoldAllTiles(page) //La page ne détecte pas toujours un clic sur un élément sensé être caché
-                    //await Misc.ClickAndWaitForSelector(page, '#' + userChoice[PromptFields.TILES], Selectors.IS_LOADING, true) //@TODO N'arrive pas à ouvrir le choix de l'utilisateur
-                    await Misc.ClickAndWaitForNetworkIdle(page, '#' + userChoice[PromptFields.TILES])
+                    let userChoice: { [index:string]:string } = await prompts(this.promptsTemplate.SELECT_TILE)
+                    await Misc.ClickAndWaitForNetworkIdle(page, userChoice[PromptFields.TILES])
                     break;
 
                 case LAYOUT_TYPES.Form:
                     await ServicePortal.FillForm(page)
-                    const result = await ServicePortal.GoToFormNextStep(page)
+                    const result = await ServicePortal.GoToFormNextStep(page) //@TODO waits indefinitely on "Étape suivante"
                     if(typeof result === "string")
                         console.log("Créé ServiceRequest " + result)
                     break;

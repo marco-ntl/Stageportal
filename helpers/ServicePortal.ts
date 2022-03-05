@@ -13,7 +13,16 @@ import { SoftwareSearchResponse } from "../types/SoftwareSearchResponse";
 
 const TEXT_INPUT_REQUIRED = " (Nécessaire)"
 const TEXT_INPUT_INVALID = "Merci d'entre au moins 3 caractères"
-const TILE_ID = 'SPtile'
+const ID_TILE = 'SPtile'
+const ID_INPUT = 'SPinput'
+const ID_INNER_INPUT = 'SPinner'
+const ID_INPUT_SELECT_VALUES = 'SPSelectVal'
+const ID_SELECTED_VALUE = 'SPselected'
+const ID_FOLD_HEADER = 'SPfold'
+const ID_RADIO_INPUT = 'SPradio'
+const API_GET_SEARCH_RESULTS = 'GetQueryResultData'
+
+const SHOULD_SEARCH_RESULTS_HAVE_HEADERS = true
 
 export enum Selectors {
     IS_LOADING = '.loading-center',
@@ -25,6 +34,8 @@ export enum Selectors {
     MAIN_FORM_INPUT = '.active div.row.question',
     MAIN_FORM_INPUT_TITLE = '.active .step-content div.row.question .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
     INPUT_SEARCH = '.selectCategoryInput',
+    INPUT_SEARCH_VALUES = '.active .ui-grid-viewport .ui-grid-icon-singleselect',
+    INPUT_SEARCH_SUBMIT_BTN = '.active .search-tbl',
     INPUT_SELECT = '.selectCategory[readonly="readonly"]',
     INPUT_SELECT_VALUES = 'li a',
     INPUT_TEXT = '[data-outname="String"]',
@@ -34,7 +45,10 @@ export enum Selectors {
     CLASS_INPUT_REQUIRED = '.required-field',
     POPUP_SR_NUMBER = ".modal-dialog a",
     POPUP_CLOSE_BUTTON = ".modal-dialog button",
-    TILE_FOLD_ELEM = '.collapse-item-bl.hidden-content'
+    TILE_FOLD_ELEM = '.collapse-item-bl.hidden-content',
+    INNER_INPUT = 'input:not([type="hidden"])',
+    
+
 }
 
 export class URLs {
@@ -56,6 +70,16 @@ export enum INPUT_TYPES {
     Unknown = 'Unknown'
 }
 
+export enum RESPONSE_HEADERS {
+    Name = 'Nom',
+    Version = 'Version',
+    Platform = 'Plate-forme',
+    Region = 'Région',
+    Price = 'Prix',
+    LogonName = 'Nom d\'utilisateur',
+    Status = 'Statut',
+}
+
 /*interface INPUT_SEARCH {
     itx-searchbox:string;
 }*/
@@ -66,7 +90,7 @@ const TYPE_FOR_INPUT: [INPUT_TYPES, PromptTypes][] = [
     [INPUT_TYPES.Text, PromptTypes.text],
 ]
 
-const SELECTORS_FOR_TYPES:[Selectors, INPUT_TYPES][] = [
+const SELECTORS_FOR_TYPES: [Selectors, INPUT_TYPES][] = [
     [Selectors.INPUT_RADIO, INPUT_TYPES.Radio],
     [Selectors.INPUT_SELECT, INPUT_TYPES.Select],
     [Selectors.INPUT_SEARCH, INPUT_TYPES.Search],
@@ -155,8 +179,8 @@ export class ServicePortal {
         return page.url().includes(URLs.HOME_PAGE);
     }
 
-    static async GetAllTiles(page: Page): Promise<ElementHandle<Element>[]> {
-        return await page.$$(Selectors.TILE)
+    static async GetAllTiles(page: Page): Promise<ElementHandle<Element>[] | false> {
+        return await Misc.GetMultipleElemsBySelector(page, Selectors.TILE)
     }
 
     static async GetFormInputs(page: Page): Promise<ElementHandle<Element>[] | false> {
@@ -192,108 +216,117 @@ export class ServicePortal {
 
     static async GetMatchingElements(page: Page, selector: string, index: false | number = false): Promise<ElementHandle<Element>[] | false> {
 
-        let result = await page.$$(selector)
-
-        if (result.length <= 0)
+        let result = await Misc.GetMultipleElemsBySelector(page, selector)
+        if (!result || result.length <= 0)
             return false
+
         if (index)
             return [result[index]]
         return result
     }
 
-    /*static async UnfoldAllTiles(page:Page){
-        /*let headers = await page.$$(Selectors.TILE_FOLD_ELEM)
-        headers.forEach(x => x
-        page.click()
-    }*/
+    static async UnfoldAllTiles(page: Page) {
+        let headers = await Misc.GetMultipleElemsBySelector(page, Selectors.TILE_FOLD_ELEM)
+        if (!headers)
+            return //Pas d'erreur, si aucun header n'est trouvé l'éxécution reprends sans se pauser
 
-    static async FillSearchInputAndGetResults(page: Page, input: ElementHandle<Element>, value: string): Promise<false | string[][]> {
-        let result: boolean | string[][] = false
-        input.type(value);
-        page.setRequestInterception(true)
-        page.on('response', async function (response: HTTPResponse) {
-            let rawResponse = await response.json(),
-                parsedResponse,
-                GetRelevantData: (response: any) => string[][]
+        let i = 0
+        for (let header of headers) {
+            const id = await Misc.SetElemID(header, ID_FOLD_HEADER + i)
+            await Misc.ClickOnElem(page, id)
+            i++
+        }
+    }
+    static async ParseSearchResponse(response: HTTPResponse): Promise<string[][] | boolean> {
+        let rawResponse = await response.json(),
+            parsedResponse,
+            result: string[][] = []
+        if (!("Count" in rawResponse) || !("Items" in rawResponse))
+            throw new Error("Unexpected response for search")
 
-            if ("SerialNumber" in rawResponse) {
+        if (rawResponse.Count === 0)
+            return false
+        else if (rawResponse.Count === 1)
+            return true
+        else {
+            if ("SerialNumber" in rawResponse.Items[0]) {
                 parsedResponse = rawResponse as ComputerSearchResponse
-                GetRelevantData = function (response: ComputerSearchResponse): string[][] {
-                    let result = []
-                    for (let item of response.Items) {
-                        result.push([item.DisplayName.Value, item.Status.Value, item.Region.Value])
-                    }
-                    return result
+                if (SHOULD_SEARCH_RESULTS_HAVE_HEADERS)
+                    result = [[RESPONSE_HEADERS.Name, RESPONSE_HEADERS.Status, RESPONSE_HEADERS.Region]]
+                for (let item of parsedResponse.Items) {
+                    result.push([item.DisplayName.Value, item.Status.Value, item.Region.Value])
                 }
+                return result
             }
-            else if ("UserPrincipalName" in rawResponse) {
+            else if ("UserPrincipalName" in rawResponse.Items[0]) {
                 parsedResponse = rawResponse as PersonSearchResponse
-                GetRelevantData = function (response: PersonSearchResponse): string[][] {
-                    let result = []
-                    for (let item of response.Items) {
-                        result.push([item.DisplayName.Value, item.UserLogonName.Value])
-                    }
-                    return result
+                if (SHOULD_SEARCH_RESULTS_HAVE_HEADERS)
+                    result = [[RESPONSE_HEADERS.Name, RESPONSE_HEADERS.LogonName]]
+                for (let item of parsedResponse.Items) {
+                    result.push([item.DisplayName.Value, item.UserLogonName.Value])
                 }
+                return result
             }
-            else if ("Version" in rawResponse) {
+            else if ("Version" in rawResponse.Items[0]) {
+                let price
                 parsedResponse = rawResponse as SoftwareSearchResponse
-                GetRelevantData = function (response: SoftwareSearchResponse): string[][] {
-                    let result = []
-                    for (let item of response.Items) {
-                        if (item.ConfigItemHasPrice.Price1Amount === undefined)
-                            var price = 0
-                        else
-                            var price = item.ConfigItemHasPrice.Price1Amount.Value
-                        result.push([item.DisplayName.Value, item.Version.Value, item.Platform.Value, item.Region.Value, price.toString()])
-                    }
-                    return result
-                }
-            }
-            else
-                throw new Error("Unexpected response for search")
+                if (SHOULD_SEARCH_RESULTS_HAVE_HEADERS)
+                    result = [[RESPONSE_HEADERS.Name, RESPONSE_HEADERS.Version, RESPONSE_HEADERS.Platform, RESPONSE_HEADERS.Region, RESPONSE_HEADERS.Price]]
 
-            if (rawResponse.Count >= 1) {
-                result = GetRelevantData(rawResponse)
+                for (let item of parsedResponse.Items) {
+                    if (item?.ConfigItemHasPrice?.Price1Amount?.Value)
+                        price = item.ConfigItemHasPrice.Price1Amount.Value
+                    else
+                        price = 0
+                    result.push([item.DisplayName.Value, item.Version.Value, item.Platform.Value, item.Region.Value, price.toString()])
+                }
+                return result
             } else
-                result = true
-        })
-        while (!result) //@TODO Abort when waiting too long
-            await Misc.sleep(10)
-        return result
+                throw new Error("Unexpected response type from search")
+        }
     }
 
-    static async SetInputValue(page: Page, input: ElementHandle<Element> | ElementHandle<Element>[], value: boolean | string | ElementHandle): Promise<boolean | string[][]> {
-        if (!Array.isArray(input))
-            input = [input]
+    static async FillSearchInputAndGetResults(page: Page, inputSelector: string, value: string): Promise<boolean | string[][]> {
+        await Misc.FocusElemAndType(page, inputSelector, value)
+        await Misc.ClickOnElem(page, Selectors.INPUT_SEARCH_SUBMIT_BTN)
+        const response = await page.waitForResponse(response => response.url().includes(API_GET_SEARCH_RESULTS))
+        return await this.ParseSearchResponse(response)
+    }
 
-        const inputType = await this.GetInputType(input[0])
+    static async SetInputValue(page: Page, inputSelector: string | string[], value: boolean | string): Promise<boolean | string[][]> {
+        if (!Array.isArray(inputSelector))
+            inputSelector = [inputSelector]
+
+        const inputType = await this.GetInputType(page, inputSelector[0])
         switch (inputType) {
             case INPUT_TYPES.Radio: //@TODO Untested
                 if (typeof value !== "boolean")
-                    throw new Error("Résultat du prompt inattendu. \"Booléen\" attendu.")
+                    throw new TypeError("Résultat du prompt inattendu. \"Booléen\" attendu.")
                 if (value)
-                    input[0].click()
+                    Misc.ClickOnElem(page, inputSelector[0])
                 else
-                    input[1].click()
+                    Misc.ClickOnElem(page, inputSelector[1])
                 return true
 
             case INPUT_TYPES.Select: //@TODO Untested
-                if (!(value instanceof ElementHandle))
-                    throw new Error("Résultat du prompt inattendu. \"ElementHandle\" attendu.")
-                value.click();
+                if (typeof value !== "string")
+                    throw new TypeError("Résultat du prompt inattendu. \"String\" attendu.")
+                const elem = await Misc.GetElemBySelector(page, value)
+                if (!elem)
+                    throw new Error("Pas trouvé de valeur d'input correspondant au sélecteur " + value)
+                await Misc.ClickOnElem(page, value)
                 return true
 
             case INPUT_TYPES.Text: //@TODO Untested
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                input[0].type(value)
+                await Misc.FocusElemAndType(page, inputSelector[0], value)
                 return true
 
-            case INPUT_TYPES.Search: //@TODO Borken
+            case INPUT_TYPES.Search:
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                return await this.FillSearchInputAndGetResults(page, input[0], value)
+                return await this.FillSearchInputAndGetResults(page, inputSelector[0], value)
 
             case INPUT_TYPES.Unknown:
             default:
@@ -302,45 +335,74 @@ export class ServicePortal {
         }
     }
 
-    static async IsInputRequired(input: ElementHandle): Promise<boolean> {
+    static async IsInputRequired(page: Page, inputSelector: string): Promise<boolean> {
+        const input = await Misc.GetElemBySelector(page, inputSelector)
+        if (!input)
+            throw new Error("Pas trouvé d'input correspondant au sélecteur " + inputSelector)
         return await input.evaluate((el, selector) => (el.querySelector(selector) !== null), Selectors.CLASS_INPUT_REQUIRED)
     }
 
     static async FillForm(page: Page): Promise<void> {
         let i = 0,
             input: ElementHandle<Element> | ElementHandle<Element>[] | false,
+            innerInput: ElementHandle<Element> | ElementHandle<Element>[] | null,
+            inputID: string | string[],
+            innerInputID: string[],
             title: string | false,
             result: Prompt[] = []
         await page.waitForTimeout(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
         while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retournera toujours la valeur assignée
             title = (await ServicePortal.GetFormTitle(page, i))
+            inputID = await Misc.SetElemID(input, ID_INPUT + i)
+
             if (!title)
                 throw new Error("Pas trouvé le titre de l'input")
 
-            let prompt = await ServicePortal.CreatePromptFromInput(input, title, 'TMP')
-            let answer: boolean | string | ElementHandle<Element> = (await prompts(prompt))['TMP']
+            let prompt = await ServicePortal.CreatePromptFromInput(page, inputID, title, 'TMP')
+            let answer: boolean | string = (await prompts(prompt))['TMP']
 
-            if (prompt.type == PromptTypes.toggle) {
-                let tmp = (await ServicePortal.GetFormInput(page, ++i))
+
+            if (prompt.type === PromptTypes.toggle) {
+                innerInputID = [await Misc.SetElemID(input, ID_INNER_INPUT + i)]
+                const tmp = (await ServicePortal.GetFormInput(page, ++i))
                 if (!tmp)
                     throw new Error("Pas trouvé le second radio input")
-                input = [input, tmp]
+                innerInputID.push(await Misc.SetElemID(tmp, ID_INNER_INPUT + i))
+            } else {
+                innerInput = await input.$(Selectors.INNER_INPUT)
+                if (!innerInput)
+                    throw new Error("Pas réussi à trouver l'élément DOM input dans le bloc " + i)
+                innerInputID = [await Misc.SetElemID(innerInput, ID_INNER_INPUT + i)]
             }
-            let response = await this.SetInputValue(page, input, answer) //@TODO -> L'input ne se set pas
+
+            if (innerInputID.length <= 0)
+                throw new Error("Pas réussi à trouver l'input dans le bloc")
+
+            let response = await this.SetInputValue(page, innerInputID, answer)
 
             //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
             if (await this.GetInputTypeFromPrompt(prompt.type) == INPUT_TYPES.Search && Array.isArray(response)) {
                 let choices: Choice[] = []
                 const lines = Misc.FormatStringRows(response)
                 for (let i = 0; i < response.length; i++)
-                    choices.push({ title: lines[i], value: response[i][0] }) //@TODO Trouver quelque chose de plus solide. Actuellement, il faut que la valeur demandée soit le premier élement de chaque ligne
+                    choices.push({ title: lines[i], value: i })
 
                 if (Array.isArray(input))
                     throw new Error("Unexpected : Input is array, should be single value")
 
-                prompt = await ServicePortal.CreatePromptFromInput(input, title, 'TMP', choices)
-                answer = (await prompts(prompt))['TMP']
-                await this.SetInputValue(page, input, answer) 
+                prompt = await ServicePortal.CreatePromptFromInput(page, inputID, "Résultats de la recherche :", 'TMP', choices)
+                let answerIndex = (await prompts(prompt))['TMP']
+                const searchResults = await Misc.GetMultipleElemsBySelector(page, Selectors.INPUT_SEARCH_VALUES)
+                if (!searchResults || searchResults.length < answerIndex)
+                    throw new Error("Failed to select search values")
+                if(SHOULD_SEARCH_RESULTS_HAVE_HEADERS){
+                    if(answerIndex === 0)
+                        throw new Error("Merci de ne pas sélectionner les en-têtes des résultats de recherche")
+                    else
+                        answerIndex = parseInt(answerIndex) - 1
+                }
+
+                await Misc.ClickOnElem(page, await Misc.SetElemID(searchResults[answerIndex], ID_SELECTED_VALUE))
             }
             i++
         }
@@ -355,7 +417,7 @@ export class ServicePortal {
         const num = await Misc.GetTextFromElement(srElem)
         if (!num)
             throw new Error("Couldn't get number from modal element")
-        const closeBtn = await page.$(Selectors.POPUP_CLOSE_BUTTON)
+        const closeBtn = Misc.GetElemBySelector(page, Selectors.POPUP_CLOSE_BUTTON)
         if (!closeBtn)
             throw new Error("Couldn't find the button to close the new SR popup")
         await Misc.ClickAndWaitForLoad(page, Selectors.POPUP_CLOSE_BUTTON)
@@ -369,7 +431,7 @@ export class ServicePortal {
             await Misc.ClickAndWaitForLoad(page, Selectors.BUTTON_NEXT)
             return true
         }
-        const submitBtn = await page.$(Selectors.BUTTON_SUBMIT)
+        const submitBtn = await Misc.GetElemBySelector(page, Selectors.BUTTON_SUBMIT)
 
         if (!submitBtn)
             return false
@@ -386,8 +448,7 @@ export class ServicePortal {
             if (!text)
                 throw new Error("Can't get title from tile")
 
-            value = TILE_ID + i
-            tile.evaluate((el, value) => el.id = value, value)
+            value = await Misc.SetElemID(tile, ID_TILE + i)
             if (!text) {
                 throw new Error("Can't find tile text")
             }
@@ -397,20 +458,27 @@ export class ServicePortal {
         return result;
     }
 
-    static async CreatePromptFromInput(input: ElementHandle, text: string, name: string, choices: Choice[] | undefined = undefined): Promise<Prompt> {
-        const inputType: INPUT_TYPES = await this.GetInputType(input)
-        const inputRquired = await this.IsInputRequired(input)
+    static async SuggestSpaceSeparatedExactMatch(input: string, choices: Choice[]): Promise<Choice[]> { //Split input à chaque espace, et retourne les éléments qui contiennent chacun des mots obtenus ainsi
+        return await choices.filter(elem => Misc.IncludesAll(elem.title, input.split(' ')))
+    }
+
+    static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, choices: Choice[] | undefined = undefined): Promise<Prompt> {
+        const inputType: INPUT_TYPES = await this.GetInputType(page, inputSelector)
+        const inputRquired = await this.IsInputRequired(page, inputSelector)
         if (!inputType)
             throw new Error("Pas trouvé le type de l'input")
-
+        let i: number = 0
         if (inputType === INPUT_TYPES.Select) {
-            const elems = await input.$$(Selectors.INPUT_SELECT_VALUES)
+            const elems = await Misc.GetMultipleElemsBySelector(page, Selectors.INPUT_SELECT_VALUES)
+            if (!elems)
+                throw new Error("Pas trouvé les valeurs du select " + inputSelector)
             choices = await Promise.all(elems.map(
                 async function (elem): Promise<Choice> {
                     const text = await Misc.GetTextFromElement(elem)
+                    const val = await Misc.SetElemID(elem, ID_INPUT_SELECT_VALUES + i)
                     if (!text)
                         throw new Error("Pas réussi à récupérer les choix du select");
-                    return { title: text, value: elem }
+                    return { title: text, value: val }
                 }))
         }
         let type: PromptTypes
@@ -421,11 +489,12 @@ export class ServicePortal {
             type = await this.GetPromptTypeFromInput(inputType)
         const shouldValidate = inputRquired && (inputType !== INPUT_TYPES.Radio && inputType !== INPUT_TYPES.Button && INPUT_TYPES.Unknown)
         return {
-            message: text + ((inputRquired) ? TEXT_INPUT_REQUIRED:''),
+            message: text + ((inputRquired) ? TEXT_INPUT_REQUIRED : ''),
             name: name,
             type: type,
             choices: choices,
-            validate: (shouldValidate) ? this.ValidateRequiredUserInput : undefined
+            validate: (shouldValidate) ? this.ValidateRequiredUserInput : undefined,
+            suggest: (type === PromptTypes.autocomplete) ? this.SuggestSpaceSeparatedExactMatch : undefined
         }
     }
 
@@ -433,13 +502,16 @@ export class ServicePortal {
         return (value.length >= 3) ? true : TEXT_INPUT_INVALID
     }
 
-    static async GetInputType(input: ElementHandle): Promise<INPUT_TYPES> {
+    static async GetInputType(page: Page, inputSelector: string): Promise<INPUT_TYPES> {
+        let input = await Misc.GetElemBySelector(page, inputSelector)
+        if (!input)
+            throw new Error("Pas réussi à trouver l'élément à partir du selecteur")
         return await input.evaluate(
-            function (el: Element, types: [Selectors,INPUT_TYPES][], notFoundVal:INPUT_TYPES.Unknown): INPUT_TYPES {
+            function (el: Element, types: [Selectors, INPUT_TYPES][], notFoundVal: INPUT_TYPES.Unknown): INPUT_TYPES {
                 for (let type of types) {
                     let inputFound = el.querySelector(type[0])
                     console.log(type + ' ' + inputFound)
-                    if (el.matches(type[0]) ||inputFound !== null)
+                    if (el.matches(type[0]) || inputFound !== null)
                         return type[1]
                 }
                 return notFoundVal
@@ -448,15 +520,11 @@ export class ServicePortal {
 
 
     static async GetLayoutType(page: Page): Promise<LAYOUT_TYPES> {
-        const hasTiles = await page.$(Selectors.TILE) || false, //page.$() retourne null si l'élément n'existe pas. null OR false = false
-            findForm = page.$(Selectors.FORM) //Il n'y aura pas forcément besoin de checker si la page contient une form, donc on évite d'attendre pour le moment
-
-        if (hasTiles) // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
+        if (await Misc.ElementExists(page, Selectors.TILE)) // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
             return LAYOUT_TYPES.Tiles
 
         //On attends maintenant que c'est nécessaire
-        const hasForm = await findForm || false
-        if (hasForm)
+        if (await Misc.ElementExists(page, Selectors.FORM))
             return LAYOUT_TYPES.Form
 
         console.log("Unknown layout type")
@@ -465,7 +533,7 @@ export class ServicePortal {
     }
 
     static async GetTitleFromTile(el: ElementHandle<Element>): Promise<string | false> {
-        return await Misc.GetTextFromElement(await el.$(Selectors.TILE_TITLE))
+        return await Misc.GetTextFromElement(await el.$(Selectors.TILE_TITLE)) //N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
     }
 
 }
