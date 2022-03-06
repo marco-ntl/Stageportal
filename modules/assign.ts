@@ -24,8 +24,8 @@ class Assign implements IModule{
     name = "Assign"
     description = "Correspond à la tuile \"Assign device\"";
     //@TODO Créer prompts pour les différents inputs
-    //@IDEA Générer prompt automatiquement à partir de l'input type ? (Select -> Select, tbx with search -> autocomplete with background checking while user is typing ? e.g. RTSC0123 -> Search RTSC0123 and add results)
     //NOTE : Un input "hidden" veut dire que l'input suivant est requis
+    ///@IDEA L'utilisateur sélectionne la tile au premier lancement, ou si elle n'est pas trouvée
     promptsTemplate = {}; //Machine number -> type:list
     browser?: Browser | undefined;
     page?: Page | undefined;

@@ -1,4 +1,4 @@
-import { ElementHandle, Page, PageEmittedEvents } from "puppeteer";
+import { ElementHandle, Page, PageEmittedEvents, PuppeteerLifeCycleEvent } from "puppeteer";
 
 const TAB_WIDTH = 4
 //Miscellaneous helpers
@@ -41,7 +41,7 @@ export class Misc {
     static IncludesAll(str:string, values:string[]):boolean{
         return values.every((val) => str.toLocaleLowerCase().includes(val.toLocaleLowerCase()))
     }
-    
+
     static sleep(ms: number) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -51,8 +51,6 @@ export class Misc {
             return false
         
         const result = await element.evaluate(el => el?.textContent)
-        if(!result)
-            throw new Error("Couldn't get text from element " + await element.getProperty('id') + ' ' + await element.getProperty('class'))
 
         if (typeof result !== "string")
             return false
@@ -68,8 +66,8 @@ export class Misc {
         return result
     }
 
-    static async WaitForLoad(page: Page) {
-        await page.waitForNavigation({ waitUntil: "domcontentloaded" })
+    static async WaitForLoad(page: Page, waitUntil:PuppeteerLifeCycleEvent|undefined = "domcontentloaded") {
+        await page.waitForNavigation({ waitUntil: waitUntil })
     }
 
     static async GotoAndWaitForSelector(page: Page, url: string, selector: string, waitForHidden = false) {
@@ -89,7 +87,7 @@ export class Misc {
     }
 
     static async ClickOnElem(page:Page, selector:string){
-        return await page.click(selector)
+        return await page.evaluate(selector => document.querySelector(selector).click(), selector) //Angular n'aime pas Puppeteer. La seule manière fiable de cliquer sur un élément en injectant le clic dans la page :)
     }
 
     static async FocusElemAndType(page:Page, itemSelector:string, value:string){
@@ -101,6 +99,13 @@ export class Misc {
         await Promise.all([
             Misc.ClickOnElem(page, selector),
             this.WaitForLoad(page)
+        ]);
+    }
+
+    static async ClickAndWaitForNavigation(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
+        await Promise.all([
+            Misc.ClickOnElem(page, selector),
+            this.WaitForLoad(page, undefined)
         ]);
     }
 

@@ -22,12 +22,13 @@ class Manual implements IModule {
     browser?: Browser;
     page?: Page;
     async run(browser: Browser, page?: Page): Promise<void> {
+        let stepCounter = 0
         if (!page)
             page = await ServicePortal.Open(browser) as Page
         else
             await ServicePortal.Open(page)
         do {
-            let layoutType = await ServicePortal.GetLayoutType(page)
+            let layoutType = await ServicePortal.GetLayoutType(page) //@TODO Implémenter le layout de la page "Installer" du Windows Store
             switch (layoutType) {
                 case LAYOUT_TYPES.Tiles:
                     await ServicePortal.UnfoldAllTiles(page)
@@ -40,14 +41,15 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                    await ServicePortal.FillForm(page)
-                    const result = await ServicePortal.GoToFormNextStep(page) //@TODO waits indefinitely on "Étape suivante"
+                    await ServicePortal.FillForm(page, stepCounter)
+                    const result = await ServicePortal.GoToFormNextStep(page, stepCounter)
                     if(typeof result === "string")
                         console.log("Créé ServiceRequest " + result)
                     break;
                 default:
                     break;
             }
+            stepCounter++
         } while (!page.url().includes(URLs.HOME_PAGE))
     }
 }
