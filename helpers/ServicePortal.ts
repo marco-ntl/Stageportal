@@ -18,7 +18,8 @@ enum PromptFields {
 enum Text {
     INPUT_REQUIRED = " (nécessaire)",
     INPUT_INVALID = "Merci d'entre au moins 3 caractères",
-    CONFIRM_SUBMIT_SR = 'Soumettre la Service Request ?'
+    CONFIRM_SUBMIT_SR = 'Soumettre la Service Request ?',
+    TILE_LEVEL_SEPARATOR = ' > '
 }
 
 enum IDs {
@@ -64,7 +65,9 @@ export enum Selectors {
     CLASS_INPUT_REQUIRED = '.required-field',
     POPUP_SR_NUMBER = ".modal-dialog a",
     POPUP_CLOSE_BUTTON = ".modal-dialog button",
-    TILE_FOLD_ELEM = '.collapse-item-bl.hidden-content',
+    TILE_FOLD_ELEM = '.collapse-item-bl',
+    TILE_FOLD_INNER_TITLE = '.heading-bl h4',
+    TILE_FOLD_ELEM_CLOSED = '.collapse-item-bl.hidden-content',
     INNER_INPUT = 'input:not([type="hidden"])',
     SEARCH_SELECTED_VALUE = '.removeselected'
 
@@ -245,7 +248,7 @@ export class ServicePortal {
     }
 
     static async UnfoldAllTiles(page: Page) {
-        let headers = await Misc.GetMultipleElemsBySelector(page, Selectors.TILE_FOLD_ELEM)
+        let headers = await Misc.GetMultipleElemsBySelector(page, Selectors.TILE_FOLD_ELEM_CLOSED)
         if (!headers)
             return //Pas d'erreur, si aucun header n'est trouvé l'éxécution reprends sans se pauser
 
@@ -345,7 +348,7 @@ export class ServicePortal {
             case INPUT_TYPES.Search:
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                return await this.FillSearchInputAndGetResults(page, inputSelector[0], value)
+                return await this.FillSearchInputAndGetResults(page, inputSelector[0], value) //@TODO Gérer les recherches sans résultats
 
             case INPUT_TYPES.Unknown:
             default:
@@ -480,21 +483,21 @@ export class ServicePortal {
         return await this.SubmitAndGetSR(page, currID)
     }
 
-    static async GetChoicesFromTiles(tiles: ElementHandle<Element>[]): Promise<Choice[]> {
+    static async GetChoicesFromTiles(page:Page, tiles: ElementHandle<Element>[]): Promise<Choice[]> {
         const result: Choice[] = [];
         let text: string | false,
-            value: string,
+            tileID: string,
             i = 0
         for (let tile of tiles) {
-            text = await ServicePortal.GetTitleFromTile(tile); //@TODO IMPORTANT Certaines Tiles de différentes catégories ont le même nom (Eg. Device Management (Windows) -> Stock Device, Device Management(Mac) -> Stock Device). Ne pas inclure l'en-tête fait perdre des informations importantes
+            tileID = await Misc.SetElemID(tile, IDs.TILE + i)
+            text = await ServicePortal.GetTitleFromTile(page, tileID);
             if (!text)
                 throw new Error("Can't get title from tile")
 
-            value = await Misc.SetElemID(tile, IDs.TILE + i)
             if (!text) {
                 throw new Error("Can't find tile text")
             }
-            result.push({ title: text, value: value });
+            result.push({ title: text, value: tileID });
             i++
         }
         return result;
@@ -583,8 +586,16 @@ export class ServicePortal {
 
     }
 
-    static async GetTitleFromTile(el: ElementHandle<Element>): Promise<string | false> {
-        return await Misc.GetTextFromElement(await el.$(Selectors.TILE_TITLE)) //N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
+    static async GetTitleFromTile(page:Page, elSelector: string): Promise<string | false> {
+        const tile = await Misc.GetElemBySelector(page, elSelector)
+        if(!tile)
+        throw new Error("Failed to get Tile")
+
+        let tileText = await Misc.GetTextFromElement(await tile.$(Selectors.TILE_TITLE))//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
+        const parentTitle:string|null = await (await Misc.GetMatchingParentText(page, elSelector, Selectors.TILE_FOLD_ELEM, Selectors.TILE_FOLD_INNER_TITLE))
+        if(parentTitle) //Si un parent est trouvé
+            tileText = parentTitle + Text.TILE_LEVEL_SEPARATOR + tileText
+        return tileText
     }
 
 }

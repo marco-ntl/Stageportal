@@ -154,6 +154,22 @@ export class Misc {
         await page.waitForSelector(selector, { hidden: true, timeout: timeout })
     }
 
+    static async GetMatchingParentText(page:Page, elemSelector:string, parentSelector:string, parentInnerSelector:string | null = null):Promise<string>{ //@TODO voir pour retourner un HTMLElement plutôt que le texte (page.evaluate ne permet pas de retourner d'éléments)
+        const parent = await page.evaluate(function(elemSelector:string, parentSelector:string, parentInnerSelector:string|null = null):string| null |undefined {
+           const parent = document.querySelector(elemSelector)?.closest(parentSelector);
+           if(!parent)
+                return null
+
+           if(!parentInnerSelector)
+                return parent.textContent
+            else
+                return parent.querySelector(parentInnerSelector)?.textContent
+        }, elemSelector, parentSelector, parentInnerSelector)
+        if(!parent)
+            throw new Error("Failed to get parent")
+        return parent
+    }
+
 }
 
 const DEFAULT_TIMEOUT = 30000;

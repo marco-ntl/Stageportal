@@ -36,7 +36,7 @@ class Manual implements IModule {
                     let tiles = await ServicePortal.GetAllTiles(page)
                     if(!tiles)
                         throw new Error("Pas réussi à récupérer les tiles");
-                    (this.promptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(tiles)
+                    (this.promptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
                     let userChoice: { [index:string]:string } = await prompts(this.promptsTemplate.SELECT_TILE)
                     await Misc.ClickAndWaitForNetworkIdle(page, userChoice[PromptFields.TILES])
                     break;
