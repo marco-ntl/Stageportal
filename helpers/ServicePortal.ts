@@ -104,7 +104,7 @@ export enum RESPONSE_HEADERS {
 }*/
 const TYPE_FOR_INPUT: [INPUT_TYPES, PromptTypes][] = [
     [INPUT_TYPES.Radio, PromptTypes.confirm],
-    [INPUT_TYPES.Select, PromptTypes.select],
+    [INPUT_TYPES.Select, PromptTypes.autocomplete],
     [INPUT_TYPES.Search, PromptTypes.text],
     [INPUT_TYPES.Text, PromptTypes.text],
 ]
@@ -375,7 +375,7 @@ export class ServicePortal {
             title: string | false
         const STEP_ID = IDs.STEP + stepNumber
         await Misc.sleep(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
-        while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retournera toujours la valeur assignée
+        while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
             if (await this.IsAlreadyValidSearch(page, input)) { //@TODO Trouver quelque chose de plus solide ? (nécessaire???). Les inputs "Search" qui commencent avec une valeur présélectionnée devraient généralement être remplacés par des selects
                 i++
                 continue;
@@ -486,7 +486,7 @@ export class ServicePortal {
             value: string,
             i = 0
         for (let tile of tiles) {
-            text = await ServicePortal.GetTitleFromTile(tile); //@TODO Certaines Tiles de différentes catégories ont le même nom (Eg. Device Management (Windows) -> Stock Device, Device Management(Mac) -> Stock Device). Ne pas inclure l'en-tête fait perdre des informations importantes
+            text = await ServicePortal.GetTitleFromTile(tile); //@TODO IMPORTANT Certaines Tiles de différentes catégories ont le même nom (Eg. Device Management (Windows) -> Stock Device, Device Management(Mac) -> Stock Device). Ne pas inclure l'en-tête fait perdre des informations importantes
             if (!text)
                 throw new Error("Can't get title from tile")
 
@@ -526,7 +526,7 @@ export class ServicePortal {
     }
 
     static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, stepId: string, choices: Choice[] | undefined = undefined): Promise<Prompt> {
-        const inputType: INPUT_TYPES = await this.GetInputType(page, inputSelector) //@TODO Utiliser un autocomplete pour les inputs select au lieu d'un select ?
+        const inputType: INPUT_TYPES = await this.GetInputType(page, inputSelector) 
         const inputRquired = await this.IsInputRequired(page, inputSelector)
         if (!inputType)
             throw new Error("Pas trouvé le type de l'input")

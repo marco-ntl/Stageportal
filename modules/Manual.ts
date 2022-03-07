@@ -12,10 +12,10 @@ class Manual implements IModule {
     description = "Permet de naviguer le ServicePortal de façon textuelle";
     promptsTemplate = {
         SELECT_TILE: {
-            type: PromptTypes.autocomplete, //Meilleur recherche via le paramètre suggest
+            type: PromptTypes.autocomplete, 
             name: PromptFields.TILES,
             message: "Sélectionner la tuile",
-            suggest:ServicePortal.SuggestSpaceSeparatedExactMatch
+            suggest:ServicePortal.SuggestSpaceSeparatedExactMatch //Meilleur recherche via le paramètre suggest
         }
     };
 
@@ -27,6 +27,7 @@ class Manual implements IModule {
             page = await ServicePortal.Open(browser) as Page
         else
             await ServicePortal.Open(page)
+
         do {
             let layoutType = await ServicePortal.GetLayoutType(page) //@TODO Implémenter le layout de la page "Installer" du Windows Store
             switch (layoutType) {
