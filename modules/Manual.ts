@@ -42,7 +42,7 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                    await ServicePortal.FillForm(page, stepCounter)
+                    await ServicePortal.FillForm(page, stepCounter) //@TODO implement error checking
                     const result = await ServicePortal.GoToFormNextStep(page, stepCounter)
                     if(typeof result === "string")
                         console.log("Créé ServiceRequest " + result)
@@ -54,7 +54,6 @@ class Manual implements IModule {
         } while (!page.url().includes(URLs.HOME_PAGE))
     }
 }
-
 
 enum PromptFields {
     TILES = "tiles"

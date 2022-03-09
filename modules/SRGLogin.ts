@@ -1,7 +1,7 @@
 import { Browser, ElementHandle, Page } from "puppeteer";
 import { prompts,  } from "..";
 import { Prompt, PromptTypes } from "../types/prompt";
-import { IModule } from "../types/IModule";
+import { CoreModules, IModule } from "../types/IModule";
 import { Misc } from '../helpers/misc'
 import { ServicePortal } from "../helpers/ServicePortal";
 
@@ -18,6 +18,8 @@ class SRGLogin implements IModule {
     browser?: Browser;
     page?: Page;
     hidden = true; //Est-ce que le module doit être affiché à l'utilisateur
+    moduleType = CoreModules.SRGLogin
+
     async run(browser:Browser, page:Page): Promise<void> {
         this.browser = browser;
         this.page = page;

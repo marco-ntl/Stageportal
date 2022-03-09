@@ -36,6 +36,8 @@ enum IDs {
 }
 
 enum API {
+    HOME = '/EndUser/ServiceCatalog',
+    CREATE_REQUEST = '/CreateRequest',
     GET_SEARCH_RESULTS = 'GetQueryResultData'
 }
 
@@ -44,6 +46,7 @@ let Settings = {
     ASK_CONFIRMATION_BEFORE_SUBMITTING_SR: true,
     PROMPT_CONFIRM_SR: { name: PromptFields.CONFIRM_SUBMIT_SR, message: Text.CONFIRM_SUBMIT_SR, type: PromptTypes.confirm }
 }
+
 export enum Selectors {
     IS_LOADING = '.loading-center',
     TILE_TITLE = 'h1,h2,h3,h4,b', //Le titre d'une tile est toujours en gras

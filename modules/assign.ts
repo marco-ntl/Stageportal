@@ -26,9 +26,12 @@ class Assign implements IModule{
     //@TODO Créer prompts pour les différents inputs
     //NOTE : Un input "hidden" veut dire que l'input suivant est requis
     ///@IDEA L'utilisateur sélectionne la tile au premier lancement, ou si elle n'est pas trouvée
+    //@IDEA Entrer liste machines (0123 0124 0125) puis liste user (natale smith xxx) -> si unique toutes les machines sont assignées à la personne; idem pour le reste des inputs
     promptsTemplate = {}; //Machine number -> type:list
     browser?: Browser | undefined;
     page?: Page | undefined;
+    hidden:boolean = false
+    
     async run(browser: Browser, page?: Page): Promise<void> {
         if(!page)
             page = await ServicePortal.Open(browser)

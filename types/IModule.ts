@@ -9,7 +9,8 @@ export interface IModule {
     browser?: Browser
     page?: Page
     run(browser?:Browser, page?:Page):Promise<void> | void
-    hidden?:boolean;
+    hidden:boolean
+    moduleType?:CoreModules
     //askForArgs():Argument | Argument[]
     //parseArgs(args:string) -> 
 }
@@ -24,4 +25,9 @@ export type Argument = {
 
 export type IDictionary<T> = {
     [name:string]:T
+}
+
+export enum CoreModules{
+    Nav = 'navigation',
+    SRGLogin = 'srgLogin',
 }
