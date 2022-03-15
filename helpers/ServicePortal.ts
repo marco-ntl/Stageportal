@@ -71,7 +71,7 @@ export enum Selectors {
     TILE_FOLD_ELEM = '.collapse-item-bl',
     TILE_FOLD_INNER_TITLE = '.heading-bl h4',
     TILE_FOLD_ELEM_CLOSED = '.collapse-item-bl.hidden-content',
-    INNER_INPUT = 'input:not([type="hidden"])',
+    INNER_INPUT = 'input:not([type="hidden"]), textarea:not([type="hidden"])',
     SEARCH_SELECTED_VALUE = '.removeselected'
 
 }
@@ -192,11 +192,11 @@ export class ServicePortal {
         return page
     }
 
-    static async GetPromptTypeFromInput(inputType: INPUT_TYPES): Promise<PromptTypes> {
+    static async GetPromptTypeFromInputType(inputType: INPUT_TYPES): Promise<PromptTypes> {
         return (await GetInputToPromptMappingFromValue(inputType))[1]
     }
 
-    static async GetInputTypeFromPrompt(promptType: PromptTypes): Promise<INPUT_TYPES> {
+    static async GetInputTypeFromPromptType(promptType: PromptTypes): Promise<INPUT_TYPES> {
         return (await GetInputToPromptMappingFromValue(promptType))[0]
     }
 
@@ -226,7 +226,7 @@ export class ServicePortal {
         return await Promise.all(elems.map(async el => await Misc.GetTextFromElement(el)))
     }
 
-    static async GetFormTitle(page: Page, index: false | number = false): Promise<string | false> {
+    static async GetInputTitle(page: Page, index: false | number = false): Promise<string | false> {
         let elems = await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT_TITLE);
         if (!elems)
             return false
@@ -372,13 +372,50 @@ export class ServicePortal {
         return (SelectedValue !== null)
     }
 
-    static async FillForm(page: Page, stepNumber: number): Promise<void> {
-        let i = 0,
-            input: ElementHandle<Element> | ElementHandle<Element>[] | false,
-            innerInput: ElementHandle<Element> | ElementHandle<Element>[] | null,
-            inputID: string | string[],
-            innerInputId: string[],
-            title: string | false
+    static async FillInputAndGetNextInputIndex(page:Page, stepID:string, inputIndex:number, value:string|boolean|undefined = undefined){
+        const input = await this.GetFormInput(page, inputIndex)
+        if(!input)
+            throw new Error("Pas réussi à récupérer l'input n°" + inputIndex)
+
+        const innerInput = await input.$(Selectors.INNER_INPUT) 
+        if (!innerInput)
+            throw new Error("Pas trouvé l'inner input") //@TODO crash sur le premier select de "Run predefined script"
+
+        const title = (await ServicePortal.GetInputTitle(page, inputIndex))
+
+        const inputID = [await Misc.SetElemID(input, stepID + IDs.INPUT + inputIndex)]
+        const innerInputId = [await Misc.SetElemID(innerInput, stepID + IDs.INNER_INPUT + inputIndex)]
+
+        if (!title)
+            throw new Error("Pas trouvé le titre de l'input")
+        if(value === undefined){
+            let prompt = await ServicePortal.CreatePromptFromInput(page, innerInputId[0], title, 'TMP', stepID)
+            value = (await prompts(prompt))['TMP'] as string|boolean
+        }
+
+        if (await this.GetInputType(page, inputID[0]) === INPUT_TYPES.Radio) { //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
+            const secondInput = (await ServicePortal.GetFormInput(page, ++inputIndex))
+            if (!secondInput)
+                throw new Error("Pas trouvé le second radio input")
+            innerInputId.push(await Misc.SetElemID(secondInput, stepID + IDs.INNER_INPUT + inputIndex))
+        }
+
+        if (innerInputId.length <= 0)
+            throw new Error("Pas réussi à trouver l'input")
+
+        let response = await this.SetInputValue(page, innerInputId, value)
+
+        //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
+        if (await this.GetInputType(page, inputID[0]) == INPUT_TYPES.Search && Array.isArray(response)) {
+            await this.HandleSearchResults(page, stepID, innerInputId[0], response)
+        }
+        inputIndex++ //On retourne l'index du prochain élément ; Cela est nécessaire à cause des Radios buttons (voir 16 lignes au dessus)
+        return inputIndex
+    }
+
+    static async FillForm(page: Page, stepNumber: number, startIndex:number = 0, fillOnlyOneInput = false): Promise<void> { //Si fillOneInput = true, on set seulement l'input à startingIndex
+        let i = startIndex,
+            input: ElementHandle<Element> | ElementHandle<Element>[] | false
         const STEP_ID = IDs.STEP + stepNumber
         await Misc.sleep(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
         while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
@@ -386,39 +423,9 @@ export class ServicePortal {
                 i++
                 continue;
             }
-
-            innerInput = await input.$(Selectors.INNER_INPUT) 
-            if (!innerInput)
-                throw new Error("Pas trouvé l'inner input") //@TODO crash sur le premier select de "Run predefined script"
-
-            title = (await ServicePortal.GetFormTitle(page, i))
-
-            inputID = [await Misc.SetElemID(input, STEP_ID + IDs.INPUT + i)]
-            innerInputId = [await Misc.SetElemID(innerInput, STEP_ID + IDs.INNER_INPUT + i)]
-
-            if (!title)
-                throw new Error("Pas trouvé le titre de l'input")
-
-            let prompt = await ServicePortal.CreatePromptFromInput(page, innerInputId[0], title, 'TMP', STEP_ID)
-            let answer: boolean | string = (await prompts(prompt))['TMP']
-
-            if (prompt.type === await this.GetPromptTypeFromInput(INPUT_TYPES.Radio)) { //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
-                const secondInput = (await ServicePortal.GetFormInput(page, ++i))
-                if (!secondInput)
-                    throw new Error("Pas trouvé le second radio input")
-                innerInputId.push(await Misc.SetElemID(secondInput, STEP_ID + IDs.INNER_INPUT + i))
-            }
-
-            if (innerInputId.length <= 0)
-                throw new Error("Pas réussi à trouver l'input")
-
-            let response = await this.SetInputValue(page, innerInputId, answer)
-
-            //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
-            if (await this.GetInputTypeFromPrompt(prompt.type) == INPUT_TYPES.Search && Array.isArray(response)) {
-                await this.HandleSearchResults(page, STEP_ID, innerInputId[0], response)
-            }
-            i++
+            i = await this.FillInputAndGetNextInputIndex(page, STEP_ID, i)
+            if(fillOnlyOneInput)
+                return 
         }
 
     }
@@ -528,8 +535,8 @@ export class ServicePortal {
             }))
     }
 
-    static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, stepId: string, choices: Choice[] | undefined = undefined): Promise<Prompt> {
-        const inputType: INPUT_TYPES = await this.GetInputType(page, inputSelector) 
+    static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, stepId: string, choices: Choice[] | undefined = undefined, desiredType:INPUT_TYPES|false = false): Promise<Prompt> {
+        const inputType: INPUT_TYPES = (!desiredType)? await this.GetInputType(page, inputSelector) : desiredType
         const inputRquired = await this.IsInputRequired(page, inputSelector)
         if (!inputType)
             throw new Error("Pas trouvé le type de l'input")
@@ -541,7 +548,7 @@ export class ServicePortal {
         if (inputType as INPUT_TYPES == INPUT_TYPES.Search && choices !== undefined)
             type = PromptTypes.autocomplete
         else
-            type = await this.GetPromptTypeFromInput(inputType)
+            type = await this.GetPromptTypeFromInputType(inputType)
         const shouldValidate = inputRquired && (inputType !== INPUT_TYPES.Radio && inputType !== INPUT_TYPES.Button && INPUT_TYPES.Unknown)
         return {
             message: text + ((inputRquired) ? Text.INPUT_REQUIRED : ''),
