@@ -20,13 +20,18 @@ class SRGLogin implements IModule {
     hidden = true; //Est-ce que le module doit être affiché à l'utilisateur
     moduleType = CoreModules.SRGLogin
 
-    async run(browser:Browser, page:Page): Promise<void> {
-        this.browser = browser;
-        this.page = page;
-        await page.goto(URLs.SERVICE_PORTAL)
+    async run(browser:Browser, page?:Page): Promise<Page> {
+        this.browser = browser
+        if(page)
+            this.page = page;
+        else
+            this.page = await this.browser.newPage()
+
+        await this.page.goto(URLs.SERVICE_PORTAL)
         if (this.isSSRLogin()) {
             await this.SSRLogin()
         }
+        return this.page
     }
 
     validateOTP(value: string): boolean | string {
@@ -86,7 +91,5 @@ enum Selectors {
     AUTH_SUBMIT = 'input[type="submit"]',
     AUTH_OTP = 'input[name="ecallpassword"]',
 }
-
-
 
 export = new SRGLogin()
