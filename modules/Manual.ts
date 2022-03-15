@@ -15,7 +15,7 @@ class Manual implements IModule {
             type: PromptTypes.autocomplete, 
             name: PromptFields.TILES,
             message: "Sélectionner la tuile",
-            suggest:ServicePortal.SuggestSpaceSeparatedExactMatch //Meilleur recherche via le paramètre suggest
+            suggest:ServicePortal.SuggestFullTextSpaceSeparatedExactMatch //Recherche personnalisée via le paramètre suggest
         }
     };
 
@@ -42,7 +42,7 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                    await ServicePortal.FillForm(page, stepCounter) //@TODO implement error checking
+                    await ServicePortal.FillForm(page, stepCounter) //@TODO IMPORTANT implement error checking
                     const result = await ServicePortal.GoToFormNextStep(page, stepCounter)
                     if(typeof result === "string")
                         console.log("Créé ServiceRequest " + result)
@@ -58,9 +58,5 @@ class Manual implements IModule {
 enum PromptFields {
     TILES = "tiles"
 }
-
-/*interface INPUT_SEARCH {
-    itx-searchbox:string;
-}*/
 
 export = new Manual()

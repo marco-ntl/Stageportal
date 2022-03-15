@@ -187,8 +187,8 @@ export class ServicePortal {
             page = await page.newPage();
 
         await page.setCookie(langCookie);
-        //Il faut set cet user agent, sinon les tuiles ne seront pas chargées
-        await Misc.GotoAndWaitForSelector(page, URLs.SERVICE_PORTAL, Selectors.TILE)
+        if(page.url() !== URLs.HOME_PAGE)
+            await Misc.GotoAndWaitForSelector(page, URLs.SERVICE_PORTAL, Selectors.TILE)
         return page
     }
 
@@ -387,9 +387,9 @@ export class ServicePortal {
                 continue;
             }
 
-            innerInput = await input.$(Selectors.INNER_INPUT)
+            innerInput = await input.$(Selectors.INNER_INPUT) 
             if (!innerInput)
-                throw new Error("Pas trouvé l'inner input")
+                throw new Error("Pas trouvé l'inner input") //@TODO crash sur le premier select de "Run predefined script"
 
             title = (await ServicePortal.GetFormTitle(page, i))
 
@@ -488,26 +488,23 @@ export class ServicePortal {
 
     static async GetChoicesFromTiles(page:Page, tiles: ElementHandle<Element>[]): Promise<Choice[]> {
         const result: Choice[] = [];
-        let text: string | false,
+        let tileText: TileTextInfo | false,
             tileID: string,
             i = 0
         for (let tile of tiles) {
             tileID = await Misc.SetElemID(tile, IDs.TILE + i)
-            text = await ServicePortal.GetTitleFromTile(page, tileID);
-            if (!text)
+            tileText = await ServicePortal.GetTitleAndCategoryFromTile(page, tileID);
+            if (!tileText)
                 throw new Error("Can't get title from tile")
 
-            if (!text) {
-                throw new Error("Can't find tile text")
-            }
-            result.push({ title: text, value: tileID });
+            result.push({ title: tileText.name, value: tileID, description:tileText.category });
             i++
         }
         return result;
     }
 
-    static async SuggestSpaceSeparatedExactMatch(input: string, choices: Choice[]): Promise<Choice[]> { //Split input à chaque espace, et retourne les éléments qui contiennent chacun des mots obtenus ainsi
-        return await choices.filter(elem => Misc.IncludesAll(elem.title, input.split(' ')))
+    static async SuggestFullTextSpaceSeparatedExactMatch(input: string, choices: Choice[]): Promise<Choice[]> { //Split input à chaque espace, et retourne les éléments qui contiennent chacun des mots obtenus ainsi
+        return await choices.filter(elem => Misc.IncludesAll(`${elem.title} ${elem?.description}`, input.split(' ')))
     }
 
     static async GetValuesElementsFromSelectInput(page: Page, inputSelector: string): Promise<ElementHandle[]> {
@@ -552,7 +549,7 @@ export class ServicePortal {
             type: type,
             choices: choices,
             validate: (shouldValidate) ? this.ValidateRequiredUserInput : undefined,
-            suggest: (type === PromptTypes.autocomplete) ? this.SuggestSpaceSeparatedExactMatch : undefined
+            suggest: (type === PromptTypes.autocomplete) ? this.SuggestFullTextSpaceSeparatedExactMatch : undefined
         }
     }
 
@@ -589,16 +586,22 @@ export class ServicePortal {
 
     }
 
-    static async GetTitleFromTile(page:Page, elSelector: string): Promise<string | false> {
+    static async GetTitleAndCategoryFromTile(page:Page, elSelector: string): Promise<TileTextInfo> {
         const tile = await Misc.GetElemBySelector(page, elSelector)
         if(!tile)
-        throw new Error("Failed to get Tile")
+            throw new Error("Failed to get Tile")
 
         let tileText = await Misc.GetTextFromElement(await tile.$(Selectors.TILE_TITLE))//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
+        if(!tileText)
+            throw new Error("Failed to get Tile title")
+
         const parentTitle:string|null = await (await Misc.GetMatchingParentText(page, elSelector, Selectors.TILE_FOLD_ELEM, Selectors.TILE_FOLD_INNER_TITLE))
-        if(parentTitle) //Si un parent est trouvé
-            tileText = parentTitle + Text.TILE_LEVEL_SEPARATOR + tileText
-        return tileText
+        return {name:tileText,category:parentTitle}
+
     }
 
+}
+export type TileTextInfo = {
+    name:string,
+    category:string
 }
