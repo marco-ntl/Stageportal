@@ -22,7 +22,8 @@ class Assign implements IModule{
 
         //@TODO Ouvrir tuile "Assign"
         //Demander numéros de machines à l'utilisateur
-        //for num -> fillSingleInput(index = 0, value = num); fillForm(startIndex = 1)
+        //for num -> fillSingleInput(index = 0, value = num)
+        //fillForm(startIndex = 1)
         throw new Error("Method not implemented.");
     }
 }

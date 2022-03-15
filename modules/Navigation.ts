@@ -8,20 +8,6 @@ import * as fs from 'fs'
 import path from "path";
 import SRGLogin from "./SRGLogin";
 
-/*const ARGUMENT_PC:Argument = {
-    name: 'PC',
-    description: 'Le(s) numéro(s) de PC (séparés par un espace)',
-    required: true,
-    example: 'RTSC012345 001234 013543',
-    values:undefined
-}
-const ARGUMENT_USER:Argument = {
-    name: 'username',
-    description: "L'username du propriétaire",
-    required: true,
-    example: 'natalema',
-    values:undefined
-}*/
 class Navigation implements IModule {
     name = "Navigation"
     description = "Permet de naviguer entre les modules";
@@ -31,14 +17,13 @@ class Navigation implements IModule {
         message:"Sélectionner un module",
         type:PromptTypes.autocomplete,
         }
-    }; //Select prompt -> Autocomplete
+    };
     hidden: boolean = true
     fs = require('fs')
     moduleType?: CoreModules = CoreModules.Nav
     modules: IModule[] = []
     
     async run(browser: Browser): Promise<void> {
-        //await browser.newPage() //@TODO regarder pour implémenter gestion de pages (pool de pages directement sur le serviceportal, assigner tâches par pages) Eg. Assign 4 PC -> 4 pages en parallèle
         await this.LoadAllModules()
         const page = await this.StartSRGLogin(browser);
         await this.MakeChoicesFromModules()

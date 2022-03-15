@@ -165,6 +165,7 @@ export class Misc {
             else
                 return parent.querySelector(parentInnerSelector)?.textContent
         }, elemSelector, parentSelector, parentInnerSelector)
+        
         if(!parent)
             throw new Error("Failed to get parent")
         return parent

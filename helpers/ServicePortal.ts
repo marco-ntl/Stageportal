@@ -54,8 +54,8 @@ export enum Selectors {
     TILE = '.card-block',
     FORM = '[name="requestForm"]', // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
     //MAIN_FORM_INPUT = 'textarea:visible, div.row.question input.form-control:visible, [type="radio"]:visible',
-    MAIN_FORM_INPUT = '.active div.row.question',
-    MAIN_FORM_INPUT_TITLE = '.active .step-content div.row.question .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
+    MAIN_FORM_INPUT = '.active div.row.question:not([data-fieldtype="System.SupportingItem.PortalControl.String"]', // data-fieldtype="System.SupportingItem.PortalControl.String" sont des "faux" inputs, qui servent uniquement à afficher des instructions à l'utilisateur
+    MAIN_FORM_INPUT_TITLE = '.active div.row.question:not([data-fieldtype="System.SupportingItem.PortalControl.String"]) .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
     INPUT_SEARCH = '.selectCategoryInput',
     INPUT_SEARCH_VALUES = '.active .ui-grid-viewport .ui-grid-icon-singleselect',
     INPUT_SEARCH_SUBMIT_BTN = '.active .search-tbl',
@@ -342,7 +342,7 @@ export class ServicePortal {
                 await Misc.ClickOnElem(page, value)
                 return true
 
-            case INPUT_TYPES.Text: //@TODO Untested
+            case INPUT_TYPES.Text:
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 await Misc.FocusElemAndType(page, inputSelector[0], value)
@@ -351,7 +351,7 @@ export class ServicePortal {
             case INPUT_TYPES.Search:
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                return await this.FillSearchInputAndGetResults(page, inputSelector[0], value) //@TODO Gérer les recherches sans résultats
+                return await this.FillSearchInputAndGetResults(page, inputSelector[0], value) //@TODO IMPORTANT Gérer les recherches sans résultats
 
             case INPUT_TYPES.Unknown:
             default:
@@ -379,7 +379,7 @@ export class ServicePortal {
 
         const innerInput = await input.$(Selectors.INNER_INPUT) 
         if (!innerInput)
-            throw new Error("Pas trouvé l'inner input") //@TODO crash sur le premier select de "Run predefined script"
+            throw new Error("Pas trouvé l'inner input")
 
         const title = (await ServicePortal.GetInputTitle(page, inputIndex))
 
@@ -537,7 +537,7 @@ export class ServicePortal {
 
     static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, stepId: string, choices: Choice[] | undefined = undefined, desiredType:INPUT_TYPES|false = false): Promise<Prompt> {
         const inputType: INPUT_TYPES = (!desiredType)? await this.GetInputType(page, inputSelector) : desiredType
-        const inputRquired = await this.IsInputRequired(page, inputSelector)
+        const inputRquired = await this.IsInputRequired(page, inputSelector) //@TODO pas fiable (Eg. "Select device" dans run predefined script n'est pas affiché comme requis)
         if (!inputType)
             throw new Error("Pas trouvé le type de l'input")
         if (inputType === INPUT_TYPES.Select)
