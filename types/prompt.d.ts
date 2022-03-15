@@ -36,5 +36,7 @@ export enum PromptTypes {
 
 export type Choice = {
     title: string,
-    value?: string | number | object
+    value?: string | number | object,
+    description?:string,
+    disabled?:boolean
 }
