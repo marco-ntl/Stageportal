@@ -6,10 +6,8 @@ export interface IModule {
     description:string
     helpStr?:string
     promptsTemplate: IDictionary<Prompt | Prompt[]>
-    browser?: Browser
-    page?: Page
-    run(browser?:Browser, page?:Page):Promise<void> | void
-    hidden:boolean
+    run(browser?:Browser, page?:Page):Promise<any> | void //@TODO Retirer l'argument browser ??
+    hidden?:boolean
     moduleType?:CoreModules
     //askForArgs():Argument | Argument[]
     //parseArgs(args:string) -> 
@@ -30,4 +28,7 @@ export type IDictionary<T> = {
 export enum CoreModules{
     Nav = 'navigation',
     SRGLogin = 'srgLogin',
+    Assign = 'assign',
+    Manual = 'manual',
+    
 }
