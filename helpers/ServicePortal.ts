@@ -5,7 +5,7 @@ import { resourceLimits } from "worker_threads";
 import { InputType } from "zlib";
 import { prompts } from ".."
 import { IDictionary } from "../types/IModule";
-import { Choice, Prompt, PromptTypes } from "../types/prompt"
+import { Choice, Prompt, PromptOptions, PromptTypes } from "../types/prompt"
 import { ComputerSearchResponse, Item } from "../types/ComputerSearchResponse";
 import { Misc } from "./misc";
 import { PersonSearchResponse } from "../types/PersonSearchResponse";
@@ -176,7 +176,7 @@ function GeneratePredicateFunc(elemToMatch: any) {
 async function GetInputToPromptMappingFromValue(value: INPUT_TYPES | PromptTypes): Promise<[INPUT_TYPES, PromptTypes]> {
     let typeTuple = TYPE_FOR_INPUT.find(GeneratePredicateFunc(value))
     if (!typeTuple || !Array.isArray(typeTuple) || typeTuple.length < 2)
-        throw new Error("Pas trouvé de type de prompt pour l'input")
+        throw new Error("Pas trouvé de type de prompt pour l'input") 
 
     return typeTuple
 }
@@ -372,7 +372,9 @@ export class ServicePortal {
         return (SelectedValue !== null)
     }
 
-    static async FillInputAndGetNextInputIndex(page:Page, stepID:string, inputIndex:number, value:string|boolean|undefined = undefined){
+    static async FillInputAndGetNextInputIndex(page:Page, stepID:string, inputIndex:number, value:string|boolean|undefined = undefined):Promise<false | number>{
+        let canceled = false
+        const options:PromptOptions = {onCancel:()=>canceled = true}
         const input = await this.GetFormInput(page, inputIndex)
         if(!input)
             throw new Error("Pas réussi à récupérer l'input n°" + inputIndex)
@@ -390,8 +392,10 @@ export class ServicePortal {
             throw new Error("Pas trouvé le titre de l'input")
         if(value === undefined){
             let prompt = await ServicePortal.CreatePromptFromInput(page, innerInputId[0], title, 'TMP', stepID)
-            value = (await prompts(prompt))['TMP'] as string|boolean
+            value = (await prompts(prompt, options))['TMP'] as string|boolean
         }
+        if(canceled)
+            return false
 
         if (await this.GetInputType(page, inputID[0]) === INPUT_TYPES.Radio) { //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
             const secondInput = (await ServicePortal.GetFormInput(page, ++inputIndex))
@@ -413,9 +417,10 @@ export class ServicePortal {
         return inputIndex
     }
 
-    static async FillForm(page: Page, stepNumber: number, startIndex:number = 0, fillOnlyOneInput = false): Promise<void> { //Si fillOneInput = true, on set seulement l'input à startingIndex
+    static async FillForm(page: Page, stepNumber: number, startIndex:number = 0, fillOnlyOneInput = false): Promise<boolean> { //Si fillOneInput = true, on set seulement l'input à startingIndex
         let i = startIndex,
-            input: ElementHandle<Element> | ElementHandle<Element>[] | false
+            input: ElementHandle<Element> | ElementHandle<Element>[] | false,
+            promptAnswer:false|number
         const STEP_ID = IDs.STEP + stepNumber
         await Misc.sleep(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
         while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
@@ -423,10 +428,15 @@ export class ServicePortal {
                 i++
                 continue;
             }
-            i = await this.FillInputAndGetNextInputIndex(page, STEP_ID, i)
+            promptAnswer = await this.FillInputAndGetNextInputIndex(page, STEP_ID, i)
+            if(!promptAnswer)
+                return false
+            i = promptAnswer
+
             if(fillOnlyOneInput)
-                return 
+                return true
         }
+        return true
 
     }
 
@@ -592,23 +602,27 @@ export class ServicePortal {
         return LAYOUT_TYPES.Unknown
 
     }
-
-    static async GetTitleAndCategoryFromTile(page:Page, elSelector: string): Promise<TileTextInfo> {
-        const tile = await Misc.GetElemBySelector(page, elSelector)
+    static async GetTitleFromTile(page:Page, selector:string):Promise<string>{
+        const tile = await Misc.GetElemBySelector(page, selector)
         if(!tile)
             throw new Error("Failed to get Tile")
 
-        let tileText = await Misc.GetTextFromElement(await tile.$(Selectors.TILE_TITLE))//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
-        if(!tileText)
-            throw new Error("Failed to get Tile title")
+        const result = await Misc.GetTextFromElement(await tile.$(Selectors.TILE_TITLE))//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
+        if(!result)
+            throw new Error("Failed to get title from Tile")
+        return result
+    }
 
-        const parentTitle:string|null = await (await Misc.GetMatchingParentText(page, elSelector, Selectors.TILE_FOLD_ELEM, Selectors.TILE_FOLD_INNER_TITLE))
-        return {name:tileText,category:parentTitle}
+    static async GetCategoryFromTile(page:Page, selector:string):Promise<string|undefined>{
+        return await Misc.GetMatchingParentText(page, selector, Selectors.TILE_FOLD_ELEM, Selectors.TILE_FOLD_INNER_TITLE)
+    }
 
+    static async GetTitleAndCategoryFromTile(page:Page, elSelector: string): Promise<TileTextInfo> {
+        return {name:await this.GetTitleFromTile(page, elSelector),category:await this.GetCategoryFromTile(page, elSelector)}
     }
 
 }
 export type TileTextInfo = {
     name:string,
-    category:string
+    category?:string
 }

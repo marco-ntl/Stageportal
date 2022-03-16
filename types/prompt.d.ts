@@ -13,6 +13,11 @@ export type Prompt = {
     suggest?: (input: string, choices: Choice[]) => Promise<Choice[]>
 }
 
+export type PromptOptions = {
+    onSubmit?:(prompt:Prompt, answer:any[]) => true|void,
+    onCancel?: (prompt:Prompt, answer:any[]) => true|void
+}
+
 /*export interface PromptCallback {
     previous:string,
     values:{[key in PromptFields]?:string},
