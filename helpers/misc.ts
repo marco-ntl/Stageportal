@@ -75,8 +75,10 @@ export class Misc {
             page.goto(url),
             (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(selector) //Si on attends qu'un sélecteur soit caché, il vaut mieux attendre que la page charge ; Sinon on attends directement de voir l'élément
         ])
-        if (waitForHidden)
+        if (waitForHidden){
+            await this.WaitForSelectorVisible(page, selector)
             await this.WaitForSelectorHidden(page, selector);
+        }
     }
 
     static async GotoAndWaitForLoad(page: Page, url: string) {
@@ -114,8 +116,11 @@ export class Misc {
             Misc.ClickOnElem(page, elementSelector),
             (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(loadingSelector, { timeout: timeout })
         ])
-        if (waitForHidden)
+        if (waitForHidden){
+            //waitForHidden attends qu'un élément soit caché. avant de checker si celui-ci est caché, on attends qu'il apparaîsse, au cas-où il est lazy-loadé
+            await this.WaitForSelectorVisible(page, loadingSelector)
             await this.WaitForSelectorHidden(page, loadingSelector);
+        }
     }
 
     static async ClickAndWaitForNetworkIdle(page: Page, elementSelector:string) {
@@ -147,15 +152,17 @@ export class Misc {
     static async ElementExists(page:Page, selector:string):Promise<boolean>{
         return (await this.GetElemBySelector(page, selector) !== false)
     }
+    
+    static async WaitForSelectorVisible(page: Page, selector: string, timeout = DEFAULT_TIMEOUT) {
+        await page.waitForSelector(selector, { visible: true, timeout: timeout })
+    }
 
     static async WaitForSelectorHidden(page: Page, selector: string, timeout = DEFAULT_TIMEOUT) {
-        //waitForHidden attends qu'un élément soit caché. avant de checker si celui-ci est caché, on attends qu'il apparaîsse, au cas-où il est lazy-loadé
-        await page.waitForSelector(selector, { visible: true, timeout: timeout })
         await page.waitForSelector(selector, { hidden: true, timeout: timeout })
     }
 
-    static async GetMatchingParentText(page:Page, elemSelector:string, parentSelector:string, parentInnerSelector:string | null = null):Promise<string>{ //@TODO voir pour retourner un HTMLElement plutôt que le texte (page.evaluate ne permet pas de retourner d'éléments)
-        const parent = await page.evaluate(function(elemSelector:string, parentSelector:string, parentInnerSelector:string|null = null):string| null |undefined {
+    static async GetMatchingParentText(page:Page, elemSelector:string, parentSelector:string, parentInnerSelector:string | null = null):Promise<string|undefined>{ //@TODO voir pour retourner un HTMLElement plutôt que le texte (page.evaluate ne permet pas de retourner d'éléments)
+        const parent = await page.evaluate(function(elemSelector:string, parentSelector:string, parentInnerSelector:string|null = null):string| null | undefined {
            const parent = document.querySelector(elemSelector)?.closest(parentSelector);
            if(!parent)
                 return null
@@ -165,9 +172,9 @@ export class Misc {
             else
                 return parent.querySelector(parentInnerSelector)?.textContent
         }, elemSelector, parentSelector, parentInnerSelector)
-        
         if(!parent)
-            throw new Error("Failed to get parent")
+            return undefined
+            
         return parent
     }
 
