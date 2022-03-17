@@ -509,14 +509,21 @@ export class ServicePortal {
         const result: Choice[] = [];
         let tileText: TileTextInfo | false,
             tileID: string,
-            i = 0
+            i = 0,
+            shouldSetIDs = !(await Misc.ElementExists(page, `#${IDs.TILE}0`)), //Évite d'avoir à communiquer avec la page lorsque pas nécessaire
+            currTileID
+
         for (let tile of tiles) {
-            tileID = await Misc.SetElemID(tile, IDs.TILE + i)
-            tileText = await ServicePortal.GetTitleAndCategoryFromTile(page, tileID);
+            currTileID = IDs.TILE + i
+            if(shouldSetIDs)
+                currTileID = await Misc.SetElemID(tile, currTileID)
+            else
+                currTileID = '#' + currTileID
+            tileText = await ServicePortal.GetTitleAndCategoryFromTile(page, currTileID);
             if (!tileText)
                 throw new Error("Can't get title from tile")
 
-            result.push({ title: tileText.name, value: tileID, description:tileText.category });
+            result.push({ title: tileText.name, value: currTileID, description:tileText.category });
             i++
         }
         return result;
