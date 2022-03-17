@@ -1,5 +1,5 @@
 import { Browser, ElementHandle, Page } from "puppeteer";
-import { prompts,  } from "..";
+import { prompts, } from "..";
 import { Prompt, PromptTypes } from "../types/prompt";
 import { CoreModules, IModule } from "../types/IModule";
 import { Misc } from '../helpers/misc'
@@ -20,9 +20,9 @@ class SRGLogin implements IModule {
     hidden = true; //Est-ce que le module doit être affiché à l'utilisateur
     moduleType = CoreModules.SRGLogin
 
-    async run(browser:Browser, page?:Page): Promise<Page> {
+    async run(browser: Browser, page?: Page): Promise<Page> {
         this.browser = browser
-        if(page)
+        if (page)
             this.page = page;
         else
             this.page = await this.browser.newPage()
@@ -46,30 +46,34 @@ class SRGLogin implements IModule {
         return (this.page as Page).url().includes(URLs.SRG_AUTH);
     }
 
-    async SSRLogin() {
+    async SSRLogin(): Promise<void> {
         const page = (this.page as Page);
         await page.waitForSelector(Selectors.AUTH_SUBMIT);
-      
+
         if (!await Misc.ElementExists(page, Selectors.AUTH_USERNAME) ||
             !await Misc.ElementExists(page, Selectors.AUTH_PWD ||
-            !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT)))
-          throw new Error("Pas trouvé le champ username, mot de passe, ou le bouton envoyer")
-      
+                !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT)))
+            throw new Error("Pas trouvé le champ username, mot de passe, ou le bouton envoyer")
+
         //Demande les informations de login à l'utilisateur
-        const loginInfo: {[key in PromptFields]:string} = await prompts(this.promptsTemplate.AUTH_SRG)
+        const loginInfo: { [key in PromptFields]: string } = await prompts(this.promptsTemplate.AUTH_SRG)
         await Misc.FocusElemAndType(page, Selectors.AUTH_USERNAME, loginInfo[PromptFields.username])
         await Misc.FocusElemAndType(page, Selectors.AUTH_PWD, loginInfo[PromptFields.password])
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
-        
+
         if (!await Misc.ElementExists(page, Selectors.AUTH_OTP) ||
-            !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT))
-         throw new Error("Pas trouvé le champ Code SMS, ou le bouton envoyer") //@TODO Retry login quand pas trouvé le champ (pour l'instant crash quand nom d'utilisateur/mdp incorrect)
+            !await Misc.ElementExists(page, Selectors.AUTH_SUBMIT)) {
+                console.log("Nom d'utilisateur ou mot de passe incorrect")
+                await this.run(this.browser as Browser, this.page) //Il faut recharger la page de SSO pour réessayer de se connecter
+                return
+        }
+
 
         //Demande le One Time Password (Code SMS) à l'utilisateur
         const OTP = await prompts(this.promptsTemplate.AUTH_SRG_OTP)
         await Misc.FocusElemAndType(page, Selectors.AUTH_OTP, OTP[PromptFields.otp])
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
-      }
+    }
 
 }
 
