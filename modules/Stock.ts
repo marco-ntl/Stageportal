@@ -6,7 +6,7 @@ import { Console } from "console";
 import { ServicePortal } from "../helpers/ServicePortal";
 
 class Assign implements IModule{
-    name = "Stock"
+    name = "EN COURS Stock"
     description = "Correspond à la tuile \"Stock device\"";
     promptsTemplate = {}; //Machine number -> type:list
     hidden:boolean = false

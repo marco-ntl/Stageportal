@@ -21,7 +21,7 @@ const ARGUMENT_USER:Argument = {
 }*/
 
 class Assign implements IModule{
-    name = "Assign"
+    name = "NON DISPONIBLE Assign"
     description = "Correspond à la tuile \"Assign device\"";
     //@TODO Créer prompts pour les différents inputs
     //NOTE : Un input "hidden" veut dire que l'input suivant est requis
