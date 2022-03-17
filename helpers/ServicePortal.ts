@@ -10,6 +10,8 @@ import { ComputerSearchResponse, Item } from "../types/ComputerSearchResponse";
 import { Misc } from "./misc";
 import { PersonSearchResponse } from "../types/PersonSearchResponse";
 import { SoftwareSearchResponse } from "../types/SoftwareSearchResponse";
+import { HomeTileIdentifiers } from "../types/HomeTileIdentifiers";
+import DB, { Tables } from "./db";
 
 enum PromptFields {
     CONFIRM_SUBMIT_SR = 'prConfirm'
@@ -620,6 +622,16 @@ export class ServicePortal {
     static async GetTitleAndCategoryFromTile(page:Page, elSelector: string): Promise<TileTextInfo> {
         return {name:await this.GetTitleFromTile(page, elSelector),category:await this.GetCategoryFromTile(page, elSelector)}
     }
+
+    /*static async OpenTile(tile:HomeTileIdentifiers): Promise<void>{
+        if(!(await DB.TableExists(Tables.Tiles))) //@TODO If !tableExists -> create Table; If !GetTile(tile) -> List tiles, ask user to select tile
+            DB.CreateTilesTable()
+
+        let tileInfo = await DB.GetTileByIdentifier(tile)
+        if(!tileInfo)
+            //@TODO Ask user to choose tile;Set TileInfo
+        //@TODO open tile with GUID
+    }*/
 
 }
 export type TileTextInfo = {

@@ -1,3 +1,4 @@
 export enum HomeTileIdentifiers{
-    Assign = 'assign'
+    Assign = 'assign',
+    Stock = 'stock'
 }
