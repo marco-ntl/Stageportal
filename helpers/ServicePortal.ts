@@ -58,8 +58,8 @@ export enum Selectors {
     TILE = '.card-block',
     FORM = '[name="requestForm"]', // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
     //MAIN_FORM_INPUT = 'textarea:visible, div.row.question input.form-control:visible, [type="radio"]:visible',
-    MAIN_FORM_INPUT = '.active div.row.question:not([data-fieldtype="System.SupportingItem.PortalControl.String"]', // data-fieldtype="System.SupportingItem.PortalControl.String" sont des "faux" inputs, qui servent uniquement à afficher des instructions à l'utilisateur
-    MAIN_FORM_INPUT_TITLE = '.active div.row.question:not([data-fieldtype="System.SupportingItem.PortalControl.String"]) .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
+    MAIN_FORM_INPUT = '.active div.row.question', // data-fieldtype="System.SupportingItem.PortalControl.String" sont des "faux" inputs, qui servent uniquement à afficher des instructions à l'utilisateur
+    MAIN_FORM_INPUT_TITLE = '.active div.row.question .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
     INPUT_SEARCH = '.selectCategoryInput',
     INPUT_SEARCH_VALUES = '.ui-grid-viewport .ui-grid-icon-singleselect',
     INPUT_SEARCH_SUBMIT_BTN = '.active .search-tbl',
@@ -220,7 +220,11 @@ export class ServicePortal {
         const tmp = await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT);
         if (!tmp)
             return false
-        return tmp[index] //
+            
+        if(index >= tmp.length)
+            return false
+
+        return tmp[index]
     }
 
     static async GetFormTitles(page: Page): Promise<(string | false)[]> {
@@ -386,7 +390,7 @@ export class ServicePortal {
 
         const innerInput = await input.$(Selectors.INNER_INPUT)
         if (!innerInput)
-            throw new Error("Pas trouvé l'inner input")
+            return await this.FillInputAndGetNextInputIndex(page, stepID,++inputIndex, value) //Il y a de "faux" inputs (Eg. run predefined script) qui ne contiennent que du texte, si c'est le cas on skip l'élément
 
         const title = (await ServicePortal.GetInputTitle(page, inputIndex))
 
