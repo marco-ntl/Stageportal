@@ -5,7 +5,7 @@ export interface IModule {
     name:string
     description:string
     helpStr?:string
-    promptsTemplate: IDictionary<Prompt | Prompt[]>
+    promptsTemplate?: IDictionary<Prompt | Prompt[]>
     run(browser?:Browser, page?:Page):Promise<any> | void //@TODO Retirer l'argument browser ??
     hidden?:boolean
     moduleType?:CoreModules
@@ -31,4 +31,11 @@ export enum CoreModules{
     Assign = 'assign',
     Manual = 'manual',
     
+}
+
+export function isModule(obj:any):obj is IModule {
+    return (
+        "name" in obj &&
+        "description" in obj &&
+        "run" in obj)
 }

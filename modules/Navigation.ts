@@ -1,5 +1,5 @@
 import { Choice, Prompt, PromptOptions, PromptTypes } from "../types/prompt";
-import { Argument, CoreModules, IDictionary, IModule } from "../types/IModule";
+import { Argument, CoreModules, IDictionary, IModule, isModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
 import { ServicePortal } from "../helpers/ServicePortal";
@@ -7,6 +7,7 @@ import { Browser, Page } from "puppeteer";
 import * as fs from 'fs'
 import path from "path";
 import SRGLogin from "./SRGLogin";
+import { exit } from "process";
 
 class Navigation implements IModule {
     name = "Navigation"
@@ -22,7 +23,6 @@ class Navigation implements IModule {
     fs = require('fs')
     moduleType?: CoreModules = CoreModules.Nav
     modules: IModule[] = []
-    promptCanceled = false
 
     async run(browser: Browser): Promise<void> {
         let canceled = false
@@ -35,21 +35,30 @@ class Navigation implements IModule {
             if (!canceled)
                 await (answer[promptFields.module] as IModule).run(browser, page)
             else
-                canceled = false
+                exit()
         }
     }
-    private async test(prompt: Prompt, answer: any[]) {
-        this.promptCanceled = true
-    }
+
     private async LoadAllModules() {
         if (this.modules.length > 0)
             throw new Error("Les modules ont déjà été chargés")
-
-        const files = fs.readdirSync('./modules').filter(file => path.extname(file).toLocaleLowerCase() === '.ts') //On récupère les fichiers .ts
+        let modulePath = './modules'
+        if(!fs.existsSync(modulePath)) //L'application run à travers node.exe
+            modulePath = './build/modules'
+        let files = fs.readdirSync(modulePath)
+        //files.map(console.log)
+        files = files.filter(file => file.endsWith('.js') || file.endsWith('.ts')) //On récupère les fichiers .ts (ou .js pour le packaging)
+        //console.log("Found " + files.length + " modules")
         for (let file of files) {
             try {
-                const tmp = require('./' + path.parse(file).name) //@TODO check conformité avec IModule
-                this.modules.push(tmp)
+                let files = fs.readdirSync(modulePath)
+                //console.log(`${modulePath}/${file}`)
+                //console.log(require.resolve(`${modulePath}/${file}`))
+                const tmp = require('./' + path.parse(file).name) //@TODO IMPORTANT NOK dans l'exe, les modules ne chargent pas
+                if(isModule(tmp)){
+                    this.modules.push(tmp)
+                }else
+                    console.log("Trouvé module non conforme : " + file)
             } catch {
                 console.log("Failed to load module " + file)
             }
