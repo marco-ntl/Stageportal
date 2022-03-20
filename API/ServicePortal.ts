@@ -321,7 +321,7 @@ export class ServicePortal {
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 if (!searchBtnID)
                     throw new Error("Pas trouvé le bouton de recherche")
-                return await this.FillSearchInputAndGetResults(page, inputSelector[0], searchBtnID, value) //@TODO IMPORTANT Gérer les recherches sans résultats
+                return await this.FillSearchInputAndGetResults(page, inputSelector[0], searchBtnID, value)
 
             case INPUT_TYPES.Unknown:
             default:
@@ -629,7 +629,7 @@ export class ServicePortal {
                 throw new Error("Pas réussi à récupérer les tiles");
 
             (ServicePortal.PromptsTemplate.SELECT_TILE as Prompt).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
-            const userChoice: string = (await prompts(ServicePortal.PromptsTemplate.SELECT_TILE))[PromptFields.TILES] //@TODO finir implémententation
+            const userChoice: string = (await prompts(ServicePortal.PromptsTemplate.SELECT_TILE))[PromptFields.TILES]
 
             tileInfo = { Guid: await this.GetTileGUIDBySelector(page, userChoice), Identifier: tile }
             DB.InsertTile(tileInfo)

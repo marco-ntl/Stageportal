@@ -58,7 +58,7 @@ class Navigation implements IModule {
             try {
                 //console.log(`${modulePath}/${file}`)
                 //console.log(require.resolve(`${modulePath}/${file}`))
-                const tmp = require('./' + path.parse(file).name) //@TODO IMPORTANT NOK dans l'exe, les modules ne chargent pas
+                const tmp = require('./' + path.parse(file).name)
                 if(isModule(tmp)){
                     this.modules.push(tmp)
                 }else
