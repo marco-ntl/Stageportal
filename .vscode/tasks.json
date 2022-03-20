@@ -1,0 +1,117 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "delete-old",
+        "build-tsc",
+        "create-exe",
+        "move-puppeteer",
+        "move-sqlite",
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "delete-old",
+      "type": "shell",
+      "command": "md",
+      "args": [
+        "-Force",
+        "${workspaceFolder}\\build",
+        ";",
+        "Remove-item",
+        "${workspaceFolder}\\build",
+        "-Recurse",
+        "-Force",
+        "-Confirm:$false",
+        "-ErrorAction",
+        "'silentlyContinue'"
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+    {
+      "label": "build-tsc",
+      "type": "typescript",
+      "tsconfig": "tsconfig.json",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+    {
+      "label": "create-exe",
+      "type": "shell",
+      "command": "nexe",
+      "args": [
+        "-i", "${workspaceFolder}\\build\\index.js",
+        "-o", "${workspaceFolder}\\bin\\StagePortal.exe",
+        "-r", "${workspaceFolder}/build/**/*",
+        "-r", "${workspaceFolder}/node_modules/knex/lib/dialects/**/*",
+        "-r", "${workspaceFolder}/node_modules/lodash/**/*",
+        "-t", "windows-x64-14.15.3"
+      ],
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+    {
+      "label": "move-puppeteer",
+      "type": "shell",
+      "command": "xcopy ${workspaceFolder}\\node_modules\\puppeteer\\.local-chromium ${workspaceFolder}\\bin\\node_modules\\puppeteer\\.local-chromium\\ /e /y ",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+    {
+      "label": "move-sqlite",
+      "type": "shell",
+      "command": "xcopy ${workspaceFolder}\\node_modules\\@vscode ${workspaceFolder}\\bin\\node_modules\\@vscode\\ /e /y ",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+    {
+      "label": "make-demo",
+      "type": "shell",
+      "command": "del demo; xcopy ${workspaceFolder}\\build ${workspaceFolder}\\demo\\ /e /y ",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "focus": false,
+        "close": false
+      }
+    },
+  ]
+}

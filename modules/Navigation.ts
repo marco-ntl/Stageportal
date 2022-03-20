@@ -56,7 +56,6 @@ class Navigation implements IModule {
         //console.log("Found " + files.length + " modules")
         for (let file of files) {
             try {
-                let files = fs.readdirSync(modulePath)
                 //console.log(`${modulePath}/${file}`)
                 //console.log(require.resolve(`${modulePath}/${file}`))
                 const tmp = require('./' + path.parse(file).name) //@TODO IMPORTANT NOK dans l'exe, les modules ne chargent pas

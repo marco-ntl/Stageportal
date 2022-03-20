@@ -17,7 +17,7 @@ export default class DB {
     
     private createConnection():Knex{
         return require('knex')({
-            client: 'better-sqlite3', // or 'sqlite3'
+            client: 'sqlite3', // or 'sqlite3'
             connection: {
                 filename: DB_FILE_NAME
             }
