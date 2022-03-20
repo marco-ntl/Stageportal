@@ -2,7 +2,7 @@ import { Choice, Prompt, PromptOptions, PromptTypes } from "../types/prompt";
 import { Argument, CoreModules, IDictionary, IModule, isModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
-import { ServicePortal } from "../helpers/ServicePortal";
+import { ServicePortal } from "../API/ServicePortal";
 import { Browser, Page } from "puppeteer";
 import * as fs from 'fs'
 import path from "path";

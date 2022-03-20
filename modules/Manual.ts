@@ -3,9 +3,9 @@ import { Choice, Prompt, PromptOptions, PromptTypes } from "../types/prompt";
 import { Argument, IDictionary, IModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
-import { LAYOUT_TYPES, ServicePortal, Selectors, INPUT_TYPES } from "../helpers/ServicePortal";
+import { LAYOUT_TYPES, ServicePortal, Selectors, INPUT_TYPES } from "../API/ServicePortal";
 import { type } from "os";
-import { Misc } from "../helpers/misc";
+import { Misc } from "../API/misc";
 import { URLs } from "../const/URLs";
 
 class Manual implements IModule {

@@ -2,8 +2,8 @@ import { Browser, ElementHandle, Page } from "puppeteer";
 import { prompts, } from "..";
 import { Prompt, PromptTypes } from "../types/prompt";
 import { CoreModules, IModule } from "../types/IModule";
-import { Misc } from '../helpers/misc'
-import { ServicePortal } from "../helpers/ServicePortal";
+import { Misc } from '../API/misc'
+import { ServicePortal } from "../API/ServicePortal";
 import { PromptFields } from "../const/PromptFIelds";
 import { URLs } from "../const/URLs";
 

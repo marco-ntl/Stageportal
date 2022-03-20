@@ -1,6 +1,6 @@
 import { AnyTxtRecord } from "dns";
 import { Knex } from "knex";
-import { HomeTileIdentifiers } from "../types/HomeTileIdentifiers";
+import { HomeTileIdentifiers } from "../const/HomeTileIdentifiers";
 
 export interface Tile{
     Guid:string,
