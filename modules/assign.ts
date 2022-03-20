@@ -3,7 +3,7 @@ import { Prompt } from "../types/prompt";
 import { Argument, IDictionary, IModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
-import { ServicePortal } from "../helpers/ServicePortal";
+import { ServicePortal } from "../API/ServicePortal";
 
 /*const ARGUMENT_PC:Argument = {
     name: 'PC',
