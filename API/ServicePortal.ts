@@ -16,6 +16,8 @@ import { Tile } from "../tables/Tile";
 import { Text } from "../const/Text";
 import { CUSTOM_IDs } from "../const/CustomIds";
 import { URLs } from "../const/URLs";
+import { Cookie } from "../types/Cookie";
+import { PromptFields } from "../const/PromptFIelds";
 
 enum API {
     HOME = '/EndUser/ServiceCatalog',
@@ -95,31 +97,6 @@ const SELECTORS_FOR_TYPES: [Selectors, INPUT_TYPES][] = [
     [Selectors.INPUT_TEXT, INPUT_TYPES.Text],
 ]
 
-//Code récupéré dans node_modules/@types/puppeteer/index.d.ts
-//Le compileur ne veut pas reconnaître l'import, obligé de l'importer manuellement)))))))
-interface Cookie {
-    /** The cookie name. */
-    name: string;
-    /** The cookie value. */
-    value: string;
-    /** The cookie domain. */
-    domain?: string;
-    /** The cookie path. */
-    path?: string;
-    /** The cookie Unix expiration time in seconds. */
-    expires?: number;
-    /** The cookie size */
-    size?: number;
-    /** The cookie http only flag. */
-    httpOnly?: boolean;
-    /** The session cookie flag. */
-    session?: boolean;
-    /** The cookie secure flag. */
-    secure?: boolean;
-    /** The cookie same site definition. */
-    sameSite?: "Strict" | "Lax";
-}
-
 //Permet de s'assurer que le site est bien en anglais, utile car les tiles sont reconnues par texte
 const langCookie: Cookie = {
     name: "currentLanguageCode",
@@ -154,15 +131,11 @@ async function GetInputToPromptMappingFromValue(value: INPUT_TYPES | PromptTypes
 }
 
 export class ServicePortal {
-    static PromptFields = {
-        CONFIRM_SUBMIT_SR: 'prConfirm',
-        TILES: "tiles",
-    }
 
     static PromptsTemplate = {
         SELECT_TILE: {
             type: PromptTypes.autocomplete,
-            name: ServicePortal.PromptFields.TILES,
+            name: PromptFields.TILES,
             message: "(Premier lancement) - Indiquer la tuile correspondante",
             suggest: ServicePortal.SuggestFullTextSpaceSeparatedExactMatch //Recherche personnalisée via le paramètre suggest
         }
@@ -171,7 +144,7 @@ export class ServicePortal {
     static Settings = {
         SHOULD_SEARCH_RESULTS_HAVE_HEADERS: true,
         ASK_CONFIRMATION_BEFORE_SUBMITTING_SR: true,
-        PROMPT_CONFIRM_SR: { name: ServicePortal.PromptFields.CONFIRM_SUBMIT_SR, message: Text.CONFIRM_SUBMIT_SR, type: PromptTypes.confirm }
+        PROMPT_CONFIRM_SR: { name: PromptFields.CONFIRM_SUBMIT_SR, message: Text.CONFIRM_SUBMIT_SR, type: PromptTypes.confirm }
     }
 
     static async Open(page: Page | Browser): Promise<Page> {
@@ -179,7 +152,8 @@ export class ServicePortal {
             page = await page.newPage();
 
         await page.setCookie(langCookie);
-        if (page.url() !== URLs.SERVICE_PORTAL_HOME_PAGE)
+        console.log(URLs.SERVICE_PORTAL_HOME_PAGE)
+        if (!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
             await Misc.GotoAndWaitForSelector(page, URLs.SERVICE_PORTAL, Selectors.TILE)
         return page
     }
@@ -309,23 +283,23 @@ export class ServicePortal {
     static async FillSearchInputAndGetResults(page: Page, inputSelector: string, searchBtnID: string, value: string): Promise<boolean | string[][]> {
         await Misc.FocusElemAndType(page, inputSelector, value)
         await Misc.ClickOnElem(page, searchBtnID)
-        const response = await page.waitForResponse(response => response.url().includes(API.GET_SEARCH_RESULTS))
-        return await this.ParseSearchResponse(response)
+        const networkResponse = await page.waitForResponse(response => response.url().includes(API.GET_SEARCH_RESULTS))
+        return await this.ParseSearchResponse(networkResponse)
     }
 
-    static async SetInputValue(page: Page, innerInputSelector: string | string[], value: boolean | string, searchBtnID: string | undefined = undefined): Promise<boolean | string[][]> {
-        if (!Array.isArray(innerInputSelector))
-            innerInputSelector = [innerInputSelector]
+    static async SetInputValue(page: Page, inputSelector: string | string[], value: boolean | string, searchBtnID: string | undefined = undefined): Promise<boolean | string[][]> {
+        if (!Array.isArray(inputSelector))
+            inputSelector = [inputSelector]
 
-        const inputType = await this.GetInputType(page, innerInputSelector[0])
+        const inputType = await this.GetInputType(page, inputSelector[0])
         switch (inputType) {
             case INPUT_TYPES.Radio:
                 if (typeof value !== "boolean")
                     throw new TypeError("Résultat du prompt inattendu. \"Booléen\" attendu.")
                 if (value)
-                    Misc.ClickOnElem(page, innerInputSelector[0])
+                    Misc.ClickOnElem(page, inputSelector[0])
                 else
-                    Misc.ClickOnElem(page, innerInputSelector[1])
+                    Misc.ClickOnElem(page, inputSelector[1])
                 return true
 
             case INPUT_TYPES.Select:
@@ -340,7 +314,7 @@ export class ServicePortal {
             case INPUT_TYPES.Text:
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                await Misc.FocusElemAndType(page, innerInputSelector[0], value)
+                await Misc.FocusElemAndType(page, inputSelector[0], value)
                 return true
 
             case INPUT_TYPES.Search:
@@ -348,7 +322,7 @@ export class ServicePortal {
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 if (!searchBtnID)
                     throw new Error("Pas trouvé le bouton de recherche")
-                return await this.FillSearchInputAndGetResults(page, innerInputSelector[0], searchBtnID, value) //@TODO IMPORTANT Gérer les recherches sans résultats
+                return await this.FillSearchInputAndGetResults(page, inputSelector[0], searchBtnID, value) //@TODO IMPORTANT Gérer les recherches sans résultats
 
             case INPUT_TYPES.Unknown:
             default:
@@ -394,26 +368,38 @@ export class ServicePortal {
         }
         if (canceled)
             return false
+        const inputType = await this.GetInputType(page, inputID[0])
 
-        if (await this.GetInputType(page, inputID[0]) === INPUT_TYPES.Radio) { //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
-            const secondInput = (await ServicePortal.GetFormInput(page, ++inputIndex))
-            if (!secondInput)
-                throw new Error("Pas trouvé le second radio input")
-            innerInputId.push(await Misc.SetElemID(secondInput, stepID + CUSTOM_IDs.INNER_INPUT + inputIndex))
-        } else if (await this.GetInputType(page, inputID[0]) === INPUT_TYPES.Search) {
-            const searchBtn = await input.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
-            if (!searchBtn)
-                throw new Error("Pas trouvé le bouton de recherche")
-            searchBtnID = await Misc.SetElemID(searchBtn, CUSTOM_IDs.STEP + CUSTOM_IDs.SEARCH_BTN + inputIndex)
+        switch (inputType) {
+            case INPUT_TYPES.Radio: //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
+                const secondInput = (await ServicePortal.GetFormInput(page, ++inputIndex))
+                if (!secondInput)
+                    throw new Error("Pas trouvé le second radio input")
+                innerInputId.push(await Misc.SetElemID(secondInput, stepID + CUSTOM_IDs.INNER_INPUT + inputIndex))
+                break;
+            case INPUT_TYPES.Search:
+                const searchBtn = await input.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
+                if (!searchBtn)
+                    throw new Error("Pas trouvé le bouton de recherche")
+                searchBtnID = await Misc.SetElemID(searchBtn, CUSTOM_IDs.STEP + CUSTOM_IDs.SEARCH_BTN + inputIndex)
+                break;
         }
+
         if (innerInputId.length <= 0)
             throw new Error("Pas réussi à trouver l'input")
 
         let response = await this.SetInputValue(page, innerInputId, value, searchBtnID)
 
-        //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
-        if (await this.GetInputType(page, inputID[0]) == INPUT_TYPES.Search && Array.isArray(response)) {
-            await this.HandleSearchResults(page, stepID + CUSTOM_IDs.SEARCH_RESULTS + inputIndex, input, innerInputId[0], response)
+        if (inputType === INPUT_TYPES.Search) {
+            if (response === false) {
+                    console.log("Aucun résultats")
+                    await Misc.ClearTextbox(page, innerInputId[0])
+                    return await ServicePortal.FillInputAndGetNextInputIndex(page, stepID, inputIndex)
+                }
+            //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
+            if (Array.isArray(response)) {
+                await this.HandleSearchResults(page, stepID + CUSTOM_IDs.SEARCH_RESULTS + inputIndex, input, innerInputId[0], response)
+            }
         }
         inputIndex++ //On retourne l'index du prochain élément ; Cela est nécessaire à cause des Radios buttons (voir 16 lignes au dessus)
         return inputIndex
@@ -465,7 +451,7 @@ export class ServicePortal {
 
     static async SubmitAndGetSR(page: Page, elemSelector: string): Promise<string | false> {
         if (ServicePortal.Settings.ASK_CONFIRMATION_BEFORE_SUBMITTING_SR) {
-            let submit: boolean = (await prompts(ServicePortal.Settings.PROMPT_CONFIRM_SR))[ServicePortal.PromptFields.CONFIRM_SUBMIT_SR]
+            let submit: boolean = (await prompts(ServicePortal.Settings.PROMPT_CONFIRM_SR))[PromptFields.CONFIRM_SUBMIT_SR]
             if (!submit) {
                 await ServicePortal.Open(page)
                 return false
@@ -510,7 +496,7 @@ export class ServicePortal {
         let tileText: TileTextInfo | false,
             i = 0,
             shouldSetIDs = !(await Misc.ElementExists(page, `#${CUSTOM_IDs.TILE}0`)), //Évite d'avoir à communiquer avec la page lorsque pas nécessaire
-            currTileID:string
+            currTileID: string
 
         for (let tile of tiles) {
             currTileID = CUSTOM_IDs.TILE + i
@@ -614,8 +600,10 @@ export class ServicePortal {
         const tile = await Misc.GetElemBySelector(page, selector)
         if (!tile)
             throw new Error("Failed to get Tile")
-
-        const result = await Misc.GetTextFromElement(await tile.$(Selectors.TILE_TITLE))//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
+        const tileTitle = await tile.$(Selectors.TILE_TITLE)
+        if (!tileTitle)
+            throw new Error("Failed to get Tile title element")
+        const result = await Misc.GetTextFromElement(tileTitle)//N'utilise pas GetElemBySelector car il faut retourner un sous-élément de la variable el
         if (!result)
             throw new Error("Failed to get title from Tile")
         return result
@@ -642,9 +630,9 @@ export class ServicePortal {
                 throw new Error("Pas réussi à récupérer les tiles");
 
             (ServicePortal.PromptsTemplate.SELECT_TILE as Prompt).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
-            const userChoice: string = (await prompts(ServicePortal.PromptsTemplate.SELECT_TILE))[ServicePortal.PromptFields.TILES] //@TODO finir implémententation
+            const userChoice: string = (await prompts(ServicePortal.PromptsTemplate.SELECT_TILE))[PromptFields.TILES] //@TODO finir implémententation
 
-            tileInfo = { Guid: await this.GetTileGUIDBySelector(page,userChoice), Identifier: tile }
+            tileInfo = { Guid: await this.GetTileGUIDBySelector(page, userChoice), Identifier: tile }
             DB.InsertTile(tileInfo)
         }
         await this.OpenTileByGUID(page, tileInfo.Guid)
@@ -660,8 +648,8 @@ export class ServicePortal {
         return groups[1]
     }
 
-    static async OpenTileByGUID(page:Page, guid:string | Tile){
-        if(typeof guid !== "string")
+    static async OpenTileByGUID(page: Page, guid: string | Tile) {
+        if (typeof guid !== "string")
             guid = guid.Guid
 
         await Misc.GotoAndWaitForNetworkIdle(page, URLs.SERVICEPORTAL_CREATE_REQUEST + guid)

@@ -32,12 +32,15 @@ class Navigation implements IModule {
         await this.LoadAllModules()
         const page = await this.StartSRGLogin(browser);
         await this.MakeChoicesFromModules()
+
         while (true) {
             const answer = await prompts(this.promptsTemplate.SELECT_MODULE, options);
             if (!canceled)
                 await (answer[PromptFields.module] as IModule).run(browser, page)
-            else
+            else{
+                await browser.close()
                 exit()
+            }
         }
     }
 

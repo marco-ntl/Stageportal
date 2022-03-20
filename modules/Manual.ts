@@ -7,6 +7,7 @@ import { LAYOUT_TYPES, ServicePortal, Selectors, INPUT_TYPES } from "../API/Serv
 import { type } from "os";
 import { Misc } from "../API/misc";
 import { URLs } from "../const/URLs";
+import { PromptFields } from "../const/PromptFIelds";
 
 class Manual implements IModule {
     name = "Navigation textuelle"
@@ -14,7 +15,7 @@ class Manual implements IModule {
     PromptsTemplate = {
         SELECT_TILE: {
             type: PromptTypes.autocomplete,
-            name: ServicePortal.PromptFields.TILES,
+            name: PromptFields.TILES,
             message: "Sélectionner la tuile",
             suggest: ServicePortal.SuggestFullTextSpaceSeparatedExactMatch //Recherche personnalisée via le paramètre suggest
         }
@@ -47,16 +48,14 @@ class Manual implements IModule {
                     (this.PromptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
                     let userChoice: { [index: string]: string } = await prompts(this.PromptsTemplate.SELECT_TILE, options)
                     if (canceled) {
-                        await ServicePortal.Open(page)//@TODO voir quoi faire
-                        return
+                        return //@TODO voir quoi faire
                     }
-                    await Misc.ClickAndWaitForNetworkIdle(page, userChoice[ServicePortal.PromptFields.TILES])
+                    await Misc.ClickAndWaitForNetworkIdle(page, userChoice[PromptFields.TILES])
                     break;
 
                 case LAYOUT_TYPES.Form:
                     if (!await ServicePortal.FillForm(page, stepCounter)) { //@TODO IMPORTANT implement error checking
-                        await ServicePortal.Open(page)//@TODO voir quoi faire
-                        return //@TODO voir quoi faire quand l'utilisateur cancel dans une form ? retour aux tuiles ?
+                        return await this.run(browser, page) //@TODO voir quoi faire quand l'utilisateur cancel dans une form ? retour aux tuiles ?
                     }
                     const result = await ServicePortal.GoToFormNextStep(page, stepCounter)
                     if (typeof result === "string")

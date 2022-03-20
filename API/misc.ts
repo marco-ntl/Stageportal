@@ -46,15 +46,17 @@ export class Misc {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    static async GetTextFromElement(element: ElementHandle<Element> | null): Promise<string | false> {
-        if (!element || element === undefined)
-            return false
-        
+    static async GetTextFromElement(element: ElementHandle<Element>): Promise<string | false> {
         const result = await element.evaluate(el => el?.textContent)
-
         if (typeof result !== "string")
             return false
+        return result
+    }
 
+    static async GetValueFromInput(page:Page, selector: string): Promise<string | false> {
+        const result = await page.$eval(selector, el => (el as HTMLInputElement).value)
+        if (typeof result !== "string")
+            return false
         return result
     }
 
@@ -102,6 +104,17 @@ export class Misc {
     static async FocusElemAndType(page:Page, itemSelector:string, value:string){
         await page.focus(itemSelector)
         await page.keyboard.type(value)
+    }
+
+    static async ClearTextbox(page:Page, tbxSelector:string){ //Clear la textbox via des Backspaces
+        const currText = await Misc.GetValueFromInput(page, tbxSelector)
+        if(!currText)
+            return
+        await page.focus(tbxSelector)
+        for (let i = 0; i < currText.length; i++) {
+            await page.keyboard.press('Backspace')
+        }
+            
     }
 
     static async ClickAndWaitForLoad(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
