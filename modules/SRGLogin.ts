@@ -75,6 +75,10 @@ class SRGLogin implements IModule {
         const OTP = await prompts(this.promptsTemplate.AUTH_SRG_OTP)
         await Misc.FocusElemAndType(page, Selectors.AUTH_OTP, OTP[PromptFields.otp])
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
+        if(!ServicePortal.IsHomepage(page)){
+            console.log('Code SMS incorrect')
+            await this.SSRLogin()
+        }
     }
 
 }
