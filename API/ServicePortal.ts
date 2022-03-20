@@ -152,7 +152,6 @@ export class ServicePortal {
             page = await page.newPage();
 
         await page.setCookie(langCookie);
-        console.log(URLs.SERVICE_PORTAL_HOME_PAGE)
         if (!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
             await Misc.GotoAndWaitForSelector(page, URLs.SERVICE_PORTAL, Selectors.TILE)
         return page
