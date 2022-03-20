@@ -1,6 +1,6 @@
 import knex, { Knex } from "knex";
 import { Tile, TileMembers, _CreateTileTableFunc } from "../tables/Tile";
-import { HomeTileIdentifiers } from "../types/HomeTileIdentifiers";
+import { HomeTileIdentifiers } from "../const/HomeTileIdentifiers";
 
 export const DB_FILE_NAME = 'data.db'
 
@@ -26,15 +26,15 @@ export default class DB {
     
     static get conn(){
         if(!DB._conn)
-            DB._instance = new DB()
+            DB._instance = new DB() //@CLEANUP Nécessaire???
         return DB._conn
     }
 
-    static Table<T>(tableName:Tables):Knex.QueryBuilder<T>{ //@TODO untested
+    static Table<T>(tableName:Tables):Knex.QueryBuilder<T>{
         return DB.conn<T>(tableName)
     }
 
-    static async CreateTilesTable() { //@TODO untested
+    static async CreateTilesTable() {
         return await DB.conn.schema.createTable(Tables.Tiles, _CreateTileTableFunc)
     }
 
@@ -47,16 +47,20 @@ export default class DB {
     }
 
     static async InsertTile(tile:Tile){
-        return await DB.Table(Tables.Tiles).insert(tile)
+        return await DB.Table(Tables.Tiles)
+                        .insert(tile)
     }
 
     static async GetTileByIdentifier(identifier:HomeTileIdentifiers):Promise<false|Tile>{
-        const result:Tile|undefined = await DB.Table<Tile>(Tables.Tiles).where(TileMembers.Identifier, identifier).select<Tile>(TileMembers.Guid, TileMembers.Identifier).first()
+        const result:Tile|undefined = await DB
+                                            .Table(Tables.Tiles)
+                                            .where(TileMembers.Identifier, identifier)
+                                            .select<Tile>(TileMembers.Guid, TileMembers.Identifier)
+                                            .first()
         if(!result)
             return false
         return result
     }
-
 
 }
 

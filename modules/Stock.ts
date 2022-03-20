@@ -4,8 +4,9 @@ import { Argument, IDictionary, IModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
 import { ServicePortal } from "../helpers/ServicePortal";
+import { HomeTileIdentifiers } from "../const/HomeTileIdentifiers";
 
-class Assign implements IModule{
+class Stock implements IModule{
     name = "EN COURS Stock"
     description = "Correspond à la tuile \"Stock device\"";
     promptsTemplate = {}; //Machine number -> type:list
@@ -16,11 +17,8 @@ class Assign implements IModule{
             page = await ServicePortal.Open(browser)
         else
             await ServicePortal.Open(page)
-
-        //@TODO Si GUID de la tile pas dans la db -> Demander à l'utilisateur de séléctionner la tile
-        //@IDEA Fonction "SelectTile(identifier:TILES)" dans ServicePortal qui s'occupe du TODO ci-dessus
-
-        //@TODO Ouvrir tuile "Assign"
+        await ServicePortal.OpenHomeTile(page, HomeTileIdentifiers.Stock)
+        //@TODO IMPORTANT NEXT Prompt pour numéros de machines, ring, businessType, region;for num {FillForm(values)}
         //Demander numéros de machines à l'utilisateur
         //for num -> fillSingleInput(index = 0, value = num)
         //fillForm(startIndex = 1)
@@ -29,4 +27,4 @@ class Assign implements IModule{
 }
 
 
-export = new Assign()
+export = new Stock()

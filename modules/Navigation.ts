@@ -8,15 +8,17 @@ import * as fs from 'fs'
 import path from "path";
 import SRGLogin from "./SRGLogin";
 import { exit } from "process";
+import { PromptFields } from "../const/PromptFIelds";
 
 class Navigation implements IModule {
     name = "Navigation"
     description = "Permet de naviguer entre les modules";
     promptsTemplate = {
         SELECT_MODULE: {
-            name: promptFields.module,
+            name: PromptFields.module,
             message: "Sélectionner un module",
             type: PromptTypes.autocomplete,
+            suggest:ServicePortal.SuggestFullTextSpaceSeparatedExactMatch
         }
     };
     hidden: boolean = true
@@ -33,7 +35,7 @@ class Navigation implements IModule {
         while (true) {
             const answer = await prompts(this.promptsTemplate.SELECT_MODULE, options);
             if (!canceled)
-                await (answer[promptFields.module] as IModule).run(browser, page)
+                await (answer[PromptFields.module] as IModule).run(browser, page)
             else
                 exit()
         }
@@ -87,7 +89,5 @@ class Navigation implements IModule {
         )
     }
 }
-enum promptFields {
-    module = 'module'
-}
+
 export = new Navigation()

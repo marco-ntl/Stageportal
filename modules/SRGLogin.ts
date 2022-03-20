@@ -4,6 +4,8 @@ import { Prompt, PromptTypes } from "../types/prompt";
 import { CoreModules, IModule } from "../types/IModule";
 import { Misc } from '../helpers/misc'
 import { ServicePortal } from "../helpers/ServicePortal";
+import { PromptFields } from "../const/PromptFIelds";
+import { URLs } from "../const/URLs";
 
 class SRGLogin implements IModule {
     name = "Login SRG";
@@ -77,17 +79,7 @@ class SRGLogin implements IModule {
 
 }
 
-enum PromptFields {
-    username = 'username',
-    password = 'pwd',
-    otp = 'otp'
-}
 
-enum URLs {
-    SRG_AUTH = "auth.app.srgssr.ch",
-    SERVICE_PORTAL = "https://serviceportal.srgssr.ch"
-    //@TODO centralize URLs???
-}
 
 enum Selectors {
     AUTH_USERNAME = 'input[name="username"]',

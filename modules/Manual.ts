@@ -3,21 +3,22 @@ import { Choice, Prompt, PromptOptions, PromptTypes } from "../types/prompt";
 import { Argument, IDictionary, IModule } from "../types/IModule";
 import { prompts, puppeteer } from "..";
 import { Console } from "console";
-import { LAYOUT_TYPES, ServicePortal, URLs, Selectors, INPUT_TYPES } from "../helpers/ServicePortal";
+import { LAYOUT_TYPES, ServicePortal, Selectors, INPUT_TYPES } from "../helpers/ServicePortal";
 import { type } from "os";
 import { Misc } from "../helpers/misc";
+import { URLs } from "../const/URLs";
 
 class Manual implements IModule {
     name = "Navigation textuelle"
     description = "Permet de naviguer le ServicePortal de façon textuelle";
-    promptsTemplate = {
+    PromptsTemplate = {
         SELECT_TILE: {
             type: PromptTypes.autocomplete,
-            name: PromptFields.TILES,
+            name: ServicePortal.PromptFields.TILES,
             message: "Sélectionner la tuile",
             suggest: ServicePortal.SuggestFullTextSpaceSeparatedExactMatch //Recherche personnalisée via le paramètre suggest
         }
-    };
+    }
 
     browser?: Browser;
     page?: Page;
@@ -28,7 +29,7 @@ class Manual implements IModule {
 
         if (!page)
             page = await ServicePortal.Open(browser) as Page
-        else
+        else if(!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
             await ServicePortal.Open(page)
 
         do {
@@ -40,17 +41,16 @@ class Manual implements IModule {
             canceled = false
             switch (layoutType) {
                 case LAYOUT_TYPES.Tiles:
-                    await ServicePortal.UnfoldAllTiles(page)
                     let tiles = await ServicePortal.GetAllTiles(page)
                     if (!tiles)
                         throw new Error("Pas réussi à récupérer les tiles");
-                    (this.promptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
-                    let userChoice: { [index: string]: string } = await prompts(this.promptsTemplate.SELECT_TILE, options)
+                    (this.PromptsTemplate.SELECT_TILE as any).choices = await ServicePortal.GetChoicesFromTiles(page, tiles)
+                    let userChoice: { [index: string]: string } = await prompts(this.PromptsTemplate.SELECT_TILE, options)
                     if (canceled) {
                         await ServicePortal.Open(page)//@TODO voir quoi faire
                         return
                     }
-                    await Misc.ClickAndWaitForNetworkIdle(page, userChoice[PromptFields.TILES])
+                    await Misc.ClickAndWaitForNetworkIdle(page, userChoice[ServicePortal.PromptFields.TILES])
                     break;
 
                 case LAYOUT_TYPES.Form:
@@ -67,12 +67,9 @@ class Manual implements IModule {
                     break;
             }
             stepCounter++
-        } while (!page.url().includes(URLs.HOME_PAGE))
+        } while (!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
+        return await this.run(browser, page) //On revient au début du module
     }
-}
-
-enum PromptFields {
-    TILES = "tiles"
 }
 
 export = new Manual()

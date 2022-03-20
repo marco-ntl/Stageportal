@@ -88,6 +88,13 @@ export class Misc {
         ]);
     }
 
+    static async GotoAndWaitForNetworkIdle(page: Page, url:string) {
+        await Promise.all([
+            page.goto(url),
+            page.waitForNavigation({waitUntil:"networkidle0"})
+        ])
+    }
+
     static async ClickOnElem(page:Page, selector:string){
         return await page.evaluate(selector => document.querySelector(selector).click(), selector) //Angular n'aime pas Puppeteer. La seule manière fiable de cliquer sur un élément en injectant le clic dans la page :)
     }
