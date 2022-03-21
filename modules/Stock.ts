@@ -10,7 +10,7 @@ import { Misc } from "../API/misc";
 import { CUSTOM_IDs } from "../const/CustomIds";
 
 class Stock implements IModule {
-    name = "EN COURS Stock"
+    name = "Stock"
     description = "Correspond à la tuile \"Stock device\"";
     promptsTemplate = {
         COMPUTER_LIST: {
