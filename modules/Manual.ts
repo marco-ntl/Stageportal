@@ -30,7 +30,7 @@ class Manual implements IModule {
 
         if (!page)
             page = await ServicePortal.Open(browser) as Page
-        else if(!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
+        else if(!ServicePortal.IsHomepage(page))
             await ServicePortal.Open(page)
 
         do {
@@ -38,7 +38,8 @@ class Manual implements IModule {
             if (await Misc.ElementExists(page, Selectors.IS_LOADING))//Les tiles sont lazy-loadée, si on trouve l'icône de chargement on attends sa disparition
                 await Misc.WaitForSelectorHidden(page, Selectors.IS_LOADING)
 
-            let layoutType = await ServicePortal.GetLayoutType(page) //@TODO Implémenter le layout de la page "Installer" du Windows Store
+            let layoutType = await ServicePortal.GetLayoutType(page) //@TODO Implémenter le layout de la page "Installer" du Windows Store;Le layout est aussi utilisé pour les confirmations
+                                                                    //@TODO Implémenter layout "Tableau" (Page commande, confirmations)
             canceled = false
             switch (layoutType) {
                 case LAYOUT_TYPES.Tiles:
@@ -66,7 +67,7 @@ class Manual implements IModule {
                     break;
             }
             stepCounter++
-        } while (!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
+        } while (!ServicePortal.IsHomepage(page))
         return await this.run(browser, page) //On revient au début du module
     }
 }

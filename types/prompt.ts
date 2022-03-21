@@ -10,6 +10,7 @@ export type Prompt = {
     stdin?: ReadableStream
     stdout?: WritableStream
     choices?: Choice[] | void[]
+    separator?: string
     suggest?: (input: string, choices: Choice[]) => Promise<Choice[]>
 }
 

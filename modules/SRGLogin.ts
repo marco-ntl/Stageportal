@@ -77,7 +77,7 @@ class SRGLogin implements IModule {
         await Misc.ClickAndWaitForLoad(page, Selectors.AUTH_SUBMIT);
         if(!ServicePortal.IsHomepage(page)){
             console.log('Code SMS incorrect')
-            await this.SSRLogin()
+            await this.run(this.browser as Browser, page)
         }
     }
 

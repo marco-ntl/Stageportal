@@ -52,7 +52,7 @@ export enum Selectors {
     TILE_FOLD_INNER_TITLE = '.heading-bl h4',
     TILE_FOLD_ELEM_CLOSED = '.collapse-item-bl.hidden-content',
     INNER_INPUT = 'input:not([type="hidden"]), textarea:not([type="hidden"])',
-    SEARCH_SELECTED_VALUE = '.removeselected'
+    SEARCH_SELECTED_VALUE = '.ui-grid-cell.ui-grid-row-selected'
 
 }
 
@@ -78,6 +78,7 @@ export enum RESPONSE_HEADERS {
     Price = 'Prix',
     LogonName = 'Nom d\'utilisateur',
     Status = 'Statut',
+    ComputerMainUser = "Utilisateur principal"
 }
 
 /*interface INPUT_SEARCH {
@@ -152,7 +153,7 @@ export class ServicePortal {
             page = await page.newPage();
 
         await page.setCookie(langCookie);
-        if (!page.url().endsWith(URLs.SERVICE_PORTAL_HOME_PAGE))
+        if (!this.IsHomepage(page))
             await Misc.GotoAndWaitForSelector(page, URLs.SERVICE_PORTAL, Selectors.TILE)
         return page
     }
@@ -246,9 +247,9 @@ export class ServicePortal {
             if ("SerialNumber" in rawResponse.Items[0]) {
                 parsedResponse = rawResponse as ComputerSearchResponse
                 if (ServicePortal.Settings.SHOULD_SEARCH_RESULTS_HAVE_HEADERS)
-                    result = [[RESPONSE_HEADERS.Name, RESPONSE_HEADERS.Status, RESPONSE_HEADERS.Region]]
+                    result = [[RESPONSE_HEADERS.Name, RESPONSE_HEADERS.Status, RESPONSE_HEADERS.Region, RESPONSE_HEADERS.ComputerMainUser]]
                 for (let item of parsedResponse.Items) {
-                    result.push([item?.DisplayName?.Value, item?.Status?.Value, item?.Region?.Value])
+                    result.push([item?.DisplayName?.Value, item?.Status?.Value, item?.Region?.Value, item?.HardwareAssetIsUsedByPerson?.UserPrincipalName?.Value])
                 }
             }
             else if ("UserPrincipalName" in rawResponse.Items[0]) {
@@ -341,8 +342,13 @@ export class ServicePortal {
         const SelectedValue = await input.$(Selectors.SEARCH_SELECTED_VALUE)
         return (SelectedValue !== null)
     }
-
-    static async FillInputAndGetNextInputIndex(page: Page, stepID: string, inputIndex: number, value: string | boolean | undefined = undefined): Promise<false | number> {
+    static async GetSearchBtn(parent: ElementHandle<Element>) {
+        const searchBtn = await parent.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
+        if (!searchBtn)
+            throw new Error("Pas trouvé le bouton de recherche")
+        return searchBtn
+    }
+    static async FillInputAndGetNextInputIndexAndValue(page: Page, stepID: string, inputIndex: number, value: string | boolean | undefined = undefined): Promise<{ value: boolean | string, index: number }> {
         let canceled = false
         const options: PromptOptions = { onCancel: () => canceled = true }
         const input = await this.GetFormInput(page, inputIndex)
@@ -351,7 +357,7 @@ export class ServicePortal {
 
         const innerInput = await input.$(Selectors.INNER_INPUT)
         if (!innerInput)
-            return await this.FillInputAndGetNextInputIndex(page, stepID, ++inputIndex, value) //Il y a de "faux" inputs (Eg. run predefined script) qui ne contiennent que du texte, si c'est le cas on skip l'élément
+            return await this.FillInputAndGetNextInputIndexAndValue(page, stepID, ++inputIndex, value) //Il y a de "faux" inputs (Eg. run predefined script) qui ne contiennent que du texte, si c'est le cas on skip l'élément
 
         const title = (await ServicePortal.GetInputTitle(page, inputIndex))
 
@@ -361,26 +367,30 @@ export class ServicePortal {
 
         if (!title)
             throw new Error("Pas trouvé le titre de l'input")
+
+        const inputType = await this.GetInputType(page, inputID[0])
+        if (!inputType)
+            throw new Error("Pas trouvé le type de l'input")
+
+        if (inputType === INPUT_TYPES.Select)
+            await this.CreateChoicesFromSelect(page, innerInputId[0]) //NÉCÉSSAIRE; La fonction donne des IDs uniques aux choix du select
+
         if (value === undefined) {
             let prompt = await ServicePortal.CreatePromptFromInput(page, innerInputId[0], title, 'TMP')
             value = (await prompts(prompt, options))['TMP'] as string | boolean
         }
         if (canceled)
-            return false
-        const inputType = await this.GetInputType(page, inputID[0])
+            return { value: false, index: -1 }
 
         switch (inputType) {
             case INPUT_TYPES.Radio: //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
-                const secondInput = (await ServicePortal.GetFormInput(page, ++inputIndex))
-                if (!secondInput)
+                const radios = await input.$$(Selectors.INNER_INPUT)
+                if (!radios || radios.length < 2)
                     throw new Error("Pas trouvé le second radio input")
-                innerInputId.push(await Misc.SetElemID(secondInput, stepID + CUSTOM_IDs.INNER_INPUT + inputIndex))
+                innerInputId.push(await Misc.SetElemID(radios[1], stepID + CUSTOM_IDs.INNER_INPUT + inputIndex))
                 break;
             case INPUT_TYPES.Search:
-                const searchBtn = await input.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
-                if (!searchBtn)
-                    throw new Error("Pas trouvé le bouton de recherche")
-                searchBtnID = await Misc.SetElemID(searchBtn, CUSTOM_IDs.STEP + CUSTOM_IDs.SEARCH_BTN + inputIndex)
+                searchBtnID = await Misc.SetElemID(await this.GetSearchBtn(input), stepID + CUSTOM_IDs.SEARCH_BTN + inputIndex)
                 break;
         }
 
@@ -391,43 +401,63 @@ export class ServicePortal {
 
         if (inputType === INPUT_TYPES.Search) {
             if (response === false) {
-                    console.log("Aucun résultats")
-                    await Misc.ClearTextbox(page, innerInputId[0])
-                    return await ServicePortal.FillInputAndGetNextInputIndex(page, stepID, inputIndex)
-                }
+                console.log("Aucun résultats")
+                await Misc.ClearTextbox(page, innerInputId[0])
+                return await ServicePortal.FillInputAndGetNextInputIndexAndValue(page, stepID, inputIndex)
+            }
             //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
             if (Array.isArray(response)) {
-                await this.HandleSearchResults(page, stepID + CUSTOM_IDs.SEARCH_RESULTS + inputIndex, input, innerInputId[0], response)
+                value = await this.HandleSearchResults(page, stepID + CUSTOM_IDs.SEARCH_RESULTS + inputIndex, input, innerInputId[0], response)
             }
         }
         inputIndex++ //On retourne l'index du prochain élément ; Cela est nécessaire à cause des Radios buttons (voir 16 lignes au dessus)
-        return inputIndex
+        return { value: value, index: inputIndex }
     }
 
-    static async FillForm(page: Page, stepNumber: number, startIndex: number = 0, fillOnlyOneInput = false, values = undefined): Promise<boolean> { //Si fillOneInput = true, on set seulement l'input à startingIndex
+    static async FillForm(page: Page, stepNumber: number, startIndex: number = 0, fillOnlyOneInput = false, values: undefined | any | any[] = undefined): Promise<false | { value: string | boolean, index: number }[]> { //Si fillOneInput = true, on set seulement l'input à startingIndex
         let i = startIndex,
+            validInputIndex = 0,
             input: ElementHandle<Element> | ElementHandle<Element>[] | false,
-            promptAnswer: false | number
+            promptAnswer,
+            answers = [],
+            tmpVal = undefined
         const STEP_ID = CUSTOM_IDs.STEP + stepNumber
+        if (values && !Array.isArray(values))
+            values = [values]
         await Misc.sleep(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
         while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
             if (await this.IsAlreadyValidSearch(page, input)) { //@TODO Trouver quelque chose de plus solide ? (nécessaire???). Les inputs "Search" qui commencent avec une valeur présélectionnée devraient généralement être remplacés par des selects
                 i++
                 continue;
             }
-            promptAnswer = await this.FillInputAndGetNextInputIndex(page, STEP_ID, i) //@TODO IMPORTANT NEXT Injecter values quand existantes
-            if (!promptAnswer)
-                return false
-            i = promptAnswer
 
+            if (!values)
+                tmpVal = undefined
+            else if (!values[validInputIndex]) {
+                console.log("Pas assez de valeurs pour remplir la form automatiquement")
+                tmpVal = undefined
+            } else
+                tmpVal = values[validInputIndex]
+
+            promptAnswer = await this.FillInputAndGetNextInputIndexAndValue(page, STEP_ID, i, tmpVal)
+            if (promptAnswer.value === false || !promptAnswer.index) //User cancelled
+                return false
+            if(validInputIndex === 0 && stepNumber === 0){
+                //await Misc.waitForNetworkIdle(page, 10000, 1500, 500, 2)
+                //await Misc.waitForNetworkIdle(page)
+                await Misc.sleep(350) //@MALDETETE rien d'autre fonctionne @TODO plus solide????))
+            }
+            i = promptAnswer.index
+            answers.push(promptAnswer)
             if (fillOnlyOneInput)
-                return true
+                return answers
+            validInputIndex++
         }
-        return true
+        return answers
 
     }
 
-    static async HandleSearchResults(page: Page, stepID: string, parentDiv: ElementHandle<Element>, inputID: string, response: string[][]): Promise<void> {
+    static async HandleSearchResults(page: Page, stepID: string, parentDiv: ElementHandle<Element>, inputID: string, response: string[][]): Promise<string> {
         let choices: Choice[] = []
         const lines = Misc.FormatStringRows(response)
         for (let i = 0; i < response.length; i++)
@@ -444,8 +474,9 @@ export class ServicePortal {
             else
                 answerIndex = parseInt(answerIndex) - 1
         }
-
-        await Misc.ClickOnElem(page, await Misc.SetElemID(searchResults[answerIndex], stepID + CUSTOM_IDs.SELECTED_VALUE))
+        const answerID = await Misc.SetElemID(searchResults[answerIndex], stepID + CUSTOM_IDs.SELECTED_VALUE)
+        await Misc.ClickOnElem(page, answerID)
+        return answerID
     }
 
     static async SubmitAndGetSR(page: Page, elemSelector: string): Promise<string | false> {

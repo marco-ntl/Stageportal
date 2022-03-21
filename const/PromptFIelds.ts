@@ -5,4 +5,5 @@ export enum PromptFields {
     otp = 'otp',
     CONFIRM_SUBMIT_SR = 'prConfirm',
     TILES = "tiles",
+    MACHINE_NUMBER = 'computerName'
 }

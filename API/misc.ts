@@ -22,7 +22,7 @@ export class Misc {
         for (let row = 0; row < values.length; row++) { //On aligne chaque colonne
             rowAsStr = ''
             for (let col = 0; col < values[row].length; col++) {
-                nbTabs = (maxWidthPerCol[col] - values[row][col].length) / TAB_WIDTH 
+                nbTabs = (maxWidthPerCol[col] - values[row][col].length) / TAB_WIDTH
                 nbSpaces = TAB_WIDTH * (nbTabs % 1) //Eg. 4 * (2.25 % 1) => 4 * 0.25 => 1
                 rowAsStr += values[row][col] + ' '.repeat(nbSpaces) + ' '.repeat(TAB_WIDTH).repeat(nbTabs) //Apparemment le terminal de VS Code n'a pas de taille définie pour les tabs, donc il faut utiliser des espaces à la place de \t
             }
@@ -30,15 +30,15 @@ export class Misc {
         }
         return results
     }
-    static IncludesAtLeastOne(str:string, values:string[]):boolean{
-        for(let arg of values){
-            if(str.toLocaleLowerCase().includes(arg.toLocaleLowerCase()))
+    static IncludesAtLeastOne(str: string, values: string[]): boolean {
+        for (let arg of values) {
+            if (str.toLocaleLowerCase().includes(arg.toLocaleLowerCase()))
                 return true
         }
         return false
     }
 
-    static IncludesAll(str:string, values:string[]):boolean{
+    static IncludesAll(str: string, values: string[]): boolean {
         return values.every((val) => str.toLocaleLowerCase().includes(val.toLocaleLowerCase()))
     }
 
@@ -53,7 +53,7 @@ export class Misc {
         return result
     }
 
-    static async GetValueFromInput(page:Page, selector: string): Promise<string | false> {
+    static async GetValueFromInput(page: Page, selector: string): Promise<string | false> {
         const result = await page.$eval(selector, el => (el as HTMLInputElement).value)
         if (typeof result !== "string")
             return false
@@ -68,7 +68,7 @@ export class Misc {
         return result
     }
 
-    static async WaitForLoad(page: Page, waitUntil:PuppeteerLifeCycleEvent|undefined = "domcontentloaded") {
+    static async WaitForLoad(page: Page, waitUntil: PuppeteerLifeCycleEvent | undefined = "domcontentloaded") {
         await page.waitForNavigation({ waitUntil: waitUntil })
     }
 
@@ -77,7 +77,7 @@ export class Misc {
             page.goto(url),
             (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(selector) //Si on attends qu'un sélecteur soit caché, il vaut mieux attendre que la page charge ; Sinon on attends directement de voir l'élément
         ])
-        if (waitForHidden){
+        if (waitForHidden) {
             await this.WaitForSelectorVisible(page, selector)
             await this.WaitForSelectorHidden(page, selector);
         }
@@ -90,89 +90,89 @@ export class Misc {
         ]);
     }
 
-    static async GotoAndWaitForNetworkIdle(page: Page, url:string) {
+    static async GotoAndWaitForNetworkIdle(page: Page, url: string) {
         await Promise.all([
             page.goto(url),
-            page.waitForNavigation({waitUntil:"networkidle0"})
+            page.waitForNavigation({ waitUntil: "networkidle0" })
         ])
     }
 
-    static async ClickOnElem(page:Page, selector:string){
+    static async ClickOnElem(page: Page, selector: string) {
         return await page.evaluate(selector => document.querySelector(selector).click(), selector) //Angular n'aime pas Puppeteer. La seule manière fiable de cliquer sur un élément en injectant le clic dans la page :)
     }
 
-    static async FocusElemAndType(page:Page, itemSelector:string, value:string){
+    static async FocusElemAndType(page: Page, itemSelector: string, value: string) {
         await page.focus(itemSelector)
         await page.keyboard.type(value)
     }
 
-    static async ClearTextbox(page:Page, tbxSelector:string){ //Clear la textbox via des Backspaces
+    static async ClearTextbox(page: Page, tbxSelector: string) { //Clear la textbox via des Backspaces
         const currText = await Misc.GetValueFromInput(page, tbxSelector)
-        if(!currText)
+        if (!currText)
             return
         await page.focus(tbxSelector)
         for (let i = 0; i < currText.length; i++) {
             await page.keyboard.press('Backspace')
         }
-            
+
     }
 
-    static async ClickAndWaitForLoad(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
+    static async ClickAndWaitForLoad(page: Page, selector: string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
         await Promise.all([
             Misc.ClickOnElem(page, selector),
             this.WaitForLoad(page)
         ]);
     }
 
-    static async ClickAndWaitForNavigation(page: Page, selector:string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
+    static async ClickAndWaitForNavigation(page: Page, selector: string) { //Il faut utiliser le selecteur car element.click() n'est pas toujours détecté
         await Promise.all([
             Misc.ClickOnElem(page, selector),
             this.WaitForLoad(page, undefined)
         ]);
     }
 
-    static async ClickAndWaitForSelector(page: Page, elementSelector:string, loadingSelector: string, waitForHidden = false, timeout = DEFAULT_TIMEOUT) {
+    static async ClickAndWaitForSelector(page: Page, elementSelector: string, loadingSelector: string, waitForHidden = false, timeout = DEFAULT_TIMEOUT) {
         await Promise.all([
             Misc.ClickOnElem(page, elementSelector),
             (waitForHidden) ? this.WaitForLoad(page) : page.waitForSelector(loadingSelector, { timeout: timeout })
         ])
-        if (waitForHidden){
+        if (waitForHidden) {
             //waitForHidden attends qu'un élément soit caché. avant de checker si celui-ci est caché, on attends qu'il apparaîsse, au cas-où il est lazy-loadé
             await this.WaitForSelectorVisible(page, loadingSelector)
             await this.WaitForSelectorHidden(page, loadingSelector);
         }
     }
 
-    static async ClickAndWaitForNetworkIdle(page: Page, elementSelector:string) {
+    static async ClickAndWaitForNetworkIdle(page: Page, elementSelector: string) {
         await Promise.all([
             Misc.ClickOnElem(page, elementSelector),
-            page.waitForNavigation({waitUntil:"networkidle0"})
+            page.waitForNavigation({ waitUntil: "networkidle0" })
         ])
     }
 
-    static async SetElemID(elem:ElementHandle<Element>, id:string):Promise<string>{
+    static async SetElemID(elem: ElementHandle<Element>, id: string): Promise<string> {
         await elem.evaluate((el, value) => el.id = value, id)
         return '#' + id
     }
 
-    static async GetElemBySelector(page:Page, selector:string):Promise<ElementHandle<Element>|false>{
+    static async GetElemBySelector(page: Page, selector: string): Promise<ElementHandle<Element> | false> {
         let elem = await page.$(selector)
-        if(!elem)
+        if (!elem)
             return false
         return elem
     }
 
-    static async GetMultipleElemsBySelector(page:Page, selector:string):Promise<ElementHandle<Element>[]|false>{
+    static async GetMultipleElemsBySelector(page: Page, selector: string): Promise<ElementHandle<Element>[] | false> {
         let elem = await page.$$(selector)
-        if(!elem || elem.length <= 0)
+        if (!elem || elem.length <= 0)
             return false
         return elem
     }
 
-    static async ElementExists(page:Page, selector:string):Promise<boolean>{
+    static async ElementExists(page: Page, selector: string): Promise<boolean> {
         return (await this.GetElemBySelector(page, selector) !== false)
     }
-    
+
     static async WaitForSelectorVisible(page: Page, selector: string, timeout = DEFAULT_TIMEOUT) {
         await page.waitForSelector(selector, { visible: true, timeout: timeout })
     }
@@ -181,22 +181,91 @@ export class Misc {
         await page.waitForSelector(selector, { hidden: true, timeout: timeout })
     }
 
-    static async GetMatchingParentText(page:Page, elemSelector:string, parentSelector:string, parentInnerSelector:string | null = null):Promise<string|undefined>{ //@TODO voir pour retourner un HTMLElement plutôt que le texte (page.evaluate ne permet pas de retourner d'éléments)
-        const parent = await page.evaluate(function(elemSelector:string, parentSelector:string, parentInnerSelector:string|null = null):string| null | undefined {
-           const parent = document.querySelector(elemSelector)?.closest(parentSelector);
-           if(!parent)
+    static async GetMatchingParentText(page: Page, elemSelector: string, parentSelector: string, parentInnerSelector: string | null = null): Promise<string | undefined> { //@TODO voir pour retourner un HTMLElement plutôt que le texte (page.evaluate ne permet pas de retourner d'éléments)
+        const parent = await page.evaluate(function (elemSelector: string, parentSelector: string, parentInnerSelector: string | null = null): string | null | undefined {
+            const parent = document.querySelector(elemSelector)?.closest(parentSelector);
+            if (!parent)
                 return null
 
-           if(!parentInnerSelector)
+            if (!parentInnerSelector)
                 return parent.textContent
             else
                 return parent.querySelector(parentInnerSelector)?.textContent
         }, elemSelector, parentSelector, parentInnerSelector)
-        if(!parent)
+        if (!parent)
             return undefined
-            
+
         return parent
     }
+
+    /*static async waitForNetworkIdle(page: Page) { //SOURCE https://github.com/puppeteer/puppeteer/issues/1353#issuecomment-723164059
+        await Promise.all([
+            page.waitForNavigation({ waitUntil: 'networkidle0' }),
+            page.evaluate(() => history.pushState(null, (null as any), undefined)),
+        ]);
+    }*/
+    /*static waitForNetworkIdle(page:Page, timeout = 30000, waitForFirstRequest = 1000, waitForLastRequest = 200, maxInflightRequests = 0 ) { //Source : https://github.com/puppeteer/puppeteer/issues/1353#issuecomment-648299486
+        let inflight = 0;
+        let resolve:any;
+        let reject:any;
+        let firstRequestTimeoutId:any;
+        let lastRequestTimeoutId:any;
+        let timeoutId:any;
+        maxInflightRequests = Math.max(maxInflightRequests, 0);
+      
+        function cleanup() {
+          clearTimeout(timeoutId);
+          clearTimeout(firstRequestTimeoutId);
+          clearTimeout(lastRequestTimeoutId);
+          /* eslint-disable no-use-before-define
+          page.removeListener('request', onRequestStarted);
+          page.removeListener('requestfinished', onRequestFinished);
+          page.removeListener('requestfailed', onRequestFinished);
+    /* eslint-enable no-use-before-define
+}
+
+function check() {
+    if (inflight <= maxInflightRequests) {
+        clearTimeout(lastRequestTimeoutId);
+        lastRequestTimeoutId = setTimeout(onLastRequestTimeout, waitForLastRequest);
+    }
+}
+
+function onRequestStarted() {
+    clearTimeout(firstRequestTimeoutId);
+    clearTimeout(lastRequestTimeoutId);
+    inflight += 1;
+}
+
+function onRequestFinished() {
+    inflight -= 1;
+    check();
+}
+
+function onTimeout() {
+    cleanup();
+    reject(new Error('Timeout'));
+}
+
+function onFirstRequestTimeout() {
+    cleanup();
+    resolve();
+}
+
+function onLastRequestTimeout() {
+    cleanup();
+    resolve();
+}
+
+page.on('request', onRequestStarted);
+page.on('requestfinished', onRequestFinished);
+page.on('requestfailed', onRequestFinished);
+
+timeoutId = setTimeout(onTimeout, timeout); // Overall page timeout
+firstRequestTimeoutId = setTimeout(onFirstRequestTimeout, waitForFirstRequest);
+
+return new Promise((res, rej) => { resolve = res; reject = rej; });
+      }*/
 
 }
 

@@ -1,4 +1,3 @@
-//Généré automatiquement via https://app.quicktype.io/?l=ts
 export interface ComputerSearchResponse {
     Count:       number;
     Items:       Item[];
@@ -12,29 +11,41 @@ export interface Item {
     $DisplayName$:                         DisplayName;
     $LastModified$:                        DisplayName;
     $TimeAdded$:                           DisplayName;
-    Status:                                DisplayName;
     SerialNumber:                          DisplayName;
+    Status:                                DisplayName;
     Region:                                DisplayName;
     Platform:                              DisplayName;
-    DeviceDescription:                     DisplayName;
-    DisplayName:                           DisplayName;
+    DeviceType:                            BusinessType;
+    DeviceDescription:                     BusinessType;
+    BusinessType:                          BusinessType;
+    DisplayName:                           BusinessType;
     $TypeProjection$:                      DisplayName;
-    HardwareAssetIsBasedOnCatalogItem:     HardwareAsset;
+    HardwareAssetIsBasedOnCatalogItem:     null;
     HardwareAssetIsAssignedToLocation:     null;
-    HardwareAssetIsAssignedToOrganization: HardwareAsset;
+    HardwareAssetIsAssignedToOrganization: null;
     HardwareAssetIsAssignedToCostCenter:   null;
-    HardwareAssetHasConfigurationItem:     HardwareAsset;
-    HardwareAssetIsUsedByPerson:           HardwareAsset | null;
+    HardwareAssetHasConfigurationItem:     null;
+    HardwareAssetIsUsedByPerson:           HardwareAssetIsUsedByPerson;
+    HardwareAssetIsUsedByOrganization:     any[];
+    HardwareAssetBelongsToHardwareAsset:   any[];
+    ContractIsAssignedToConfigItem:        any[];
+    ImpactedWorkItem:                      any[];
+    RelatedWorkItem:                       any[];
+    FileAttachment:                        any[];
+    RelatedConfigItem:                     any[];
+    RelatedConfigItemSource:               any[];
+    RelatedKnowledgeArticles:              any[];
+    ConfigItemHasPrice:                    null;
 }
 
 export interface Class {
-    Name:          ClassName;
+    Name:          string;
     Id:            string;
-    DisplayName:   DisplayNameEnum;
+    DisplayName:   string;
     Description:   string;
     Value:         string;
     ValueAsBigInt: string;
-    Type:          ClassType;
+    Type:          string;
     AccessRights:  AccessRights;
     MaxLength:     number;
     IsDirty:       boolean;
@@ -45,114 +56,60 @@ export enum AccessRights {
     Unknown = "Unknown",
 }
 
-export enum DisplayNameEnum {
-    HardwareAsset = "Hardware Asset",
-    HardwareCatalogItem = "Hardware Catalog Item",
-    OrdinateurWindows = "Ordinateur Windows",
-    Organization = "Organization",
-    Person = "Person",
-}
-
-export enum ClassName {
-    ItnetXAssetManagementHardwareAsset = "itnetX.AssetManagement.HardwareAsset",
-    ItnetXAssetManagementHardwareCatalogItem = "itnetX.AssetManagement.HardwareCatalogItem",
-    ItnetXAssetManagementOrganization = "itnetX.AssetManagement.Organization",
-    ItnetXAssetManagementPerson = "itnetX.AssetManagement.Person",
-    MicrosoftWindowsComputer = "Microsoft.Windows.Computer",
-}
-
-export enum ClassType {
-    DateTime = "DateTime",
-    Enum = "Enum",
-    GUID = "Guid",
-    ManagementPackClass = "ManagementPackClass",
-    ManagementPackTypeProjection = "ManagementPackTypeProjection",
-    String = "String",
-}
-
 export interface DisplayName {
-    Name:          DisplayNameName;
+    Name:          string;
     Value:         string;
     ValueAsBigInt: string;
-    Type:          ClassType;
+    Type:          string;
     AccessRights:  AccessRights;
     MaxLength:     number;
     IsDirty:       boolean;
     Id?:           string;
     DisplayName?:  string;
-    EnumName?:     EnumName;
-    Description?:  Description;
+    EnumName?:     string;
     EnumTypeId?:   string;
     EnumId?:       string;
 }
 
-export enum Description {
-    HardwareCatalogItemItnetXAssetManagement = "Hardware Catalog Item (itnetX Asset Management)",
-    NomCompletDeLObjet = "Nom complet de l'objet.",
-    OrganizationItnetXAssetManagement = "Organization (itnetX Asset Management)",
-    PersonItnetXAssetManagement = "Person (itnetX Asset Management)",
-}
-
-export enum EnumName {
-    Empty = "",
-    ItnetXAssetManagementHardwareAssetStatusEnumDeployed = "itnetXAssetManagementHardwareAssetStatusEnum.Deployed",
-    ItnetXAssetManagementHardwareAssetStatusEnumInRepair = "itnetXAssetManagementHardwareAssetStatusEnum.InRepair",
-    SRGEnumPlatformWindows = "SRG.Enum.Platform.Windows",
-    SRGEnumRegionRTS = "SRG.Enum.Region.RTS",
-}
-
-export enum DisplayNameName {
-    DeviceDescription = "DeviceDescription",
-    DisplayName = "$DisplayName$",
-    ID = "$Id$",
-    ItnetXAssetManagementHardwareAssetViewTypeProjection = "itnetX.AssetManagement.HardwareAsset.View.TypeProjection",
-    ItnetXAssetManagementHardwareCatalogItem = "itnetX.AssetManagement.HardwareCatalogItem",
-    ItnetXAssetManagementOrganization = "itnetX.AssetManagement.Organization",
-    ItnetXAssetManagementPerson = "itnetX.AssetManagement.Person",
-    LastModified = "$LastModified$",
-    NameDisplayName = "DisplayName",
-    Platform = "Platform",
-    Region = "Region",
-    SerialNumber = "SerialNumber",
-    Status = "Status",
-    TimeAdded = "$TimeAdded$",
-}
-
 export interface IsNew {
-    Name:          IsNewName;
+    Name:          string;
     DisplayName:   string;
     Value:         boolean;
     ValueAsBigInt: string;
-    Type:          IsNewType;
+    Type:          string;
     AccessRights:  AccessRights;
     MaxLength:     number;
     IsDirty:       boolean;
 }
 
-export enum IsNewName {
-    IsNew = "$IsNew$",
+export interface BusinessType {
+    Name:          string;
+    DisplayName:   string;
+    Value:         string;
+    ValueAsBigInt: string;
+    Type:          string;
+    EnumTypeId?:   string;
+    EnumId?:       string;
+    EnumName:      string;
+    AccessRights:  AccessRights;
+    MaxLength:     number;
+    IsDirty:       boolean;
+    Description?:  string;
 }
 
-export enum IsNewType {
-    Boolean = "Boolean",
-}
-
-export interface HardwareAsset {
-    $Class$:         Class;
-    $IsNew$:         IsNew;
-    $Id$:            DisplayName;
-    $DisplayName$:   DisplayName;
-    $LastModified$:  DisplayName;
-    $TimeAdded$:     DisplayName;
-    $ComponentPath$: ComponentPath;
+export interface HardwareAssetIsUsedByPerson {
+    $Class$:           Class;
+    $IsNew$:           IsNew;
+    $Id$:              DisplayName;
+    $DisplayName$:     DisplayName;
+    $LastModified$:    DisplayName;
+    $TimeAdded$:       DisplayName;
+    UserPrincipalName: DisplayName;
+    $ComponentPath$:   ComponentPath;
 }
 
 export interface ComponentPath {
     Relationship:     string;
     TargetConstraint: null;
-    SeedRole:         SeedRole;
-}
-
-export enum SeedRole {
-    Source = "Source",
+    SeedRole:         string;
 }
