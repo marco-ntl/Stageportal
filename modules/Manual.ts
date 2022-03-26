@@ -55,7 +55,7 @@ class Manual implements IModule {
                     break;
 
                 case LAYOUT_TYPES.Form:
-                    if (!await ServicePortal.FillForm(page, stepCounter)) { //@TODO IMPORTANT implement error checking
+                    if (!await ServicePortal.FillForm(page, stepCounter)) { //@TODO IMPORTANT Tester la refactorisation
                         return await this.run(browser, page) //@TODO voir quoi faire quand l'utilisateur cancel dans une form ? retour aux tuiles ?
                     }
                     const result = await ServicePortal.GoToFormNextStep(page, stepCounter)

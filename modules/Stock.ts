@@ -7,7 +7,7 @@ import { INPUT_TYPES, Selectors, ServicePortal } from "../API/ServicePortal";
 import { HomeTileIdentifiers } from "../const/HomeTileIdentifiers";
 import { PromptFields } from "../const/PromptFIelds";
 import { Misc } from "../API/misc";
-import { CUSTOM_IDs } from "../const/CustomIds";
+import { UNIQUE_IDS } from "../const/UniqueIDs";
 
 class Stock implements IModule {
     name = "Stock"
@@ -39,20 +39,22 @@ class Stock implements IModule {
         if(!computerInputResult) //Cancelled
             return
 
-        const restOfForm = (await ServicePortal.FillForm(page, stepNum, computerInputResult[0].index))
+        const restOfForm = (await ServicePortal.FillForm(page, stepNum, computerInputResult.nextIndex))
         if(!restOfForm) //Cancelled
             return 
-        const constantValues = restOfForm.map(x => x.value)
         const SR = await ServicePortal.GoToFormNextStep(page, stepNum)
+
         console.log("Créé ServiceRequest " + SR)
         const shouldConfirmSROld = ServicePortal.Settings.ASK_CONFIRMATION_BEFORE_SUBMITTING_SR
         ServicePortal.Settings.ASK_CONFIRMATION_BEFORE_SUBMITTING_SR = false //On évite de prompter l'utilisateur à chaque nouvelle SR
+
         for(let computer of computers) {
             await ServicePortal.OpenHomeTile(page, HomeTileIdentifiers.Stock)
-            await ServicePortal.FillForm(page, stepNum, 0, false, ([computer] as any[]).concat(constantValues))
+            await ServicePortal.FillForm(page, stepNum, 0, false, ([computer] as any[]).concat(restOfForm.values))
             const SR = await ServicePortal.GoToFormNextStep(page, stepNum)
             console.log("Créé ServiceRequest " + SR)
         }
+
         ServicePortal.Settings.ASK_CONFIRMATION_BEFORE_SUBMITTING_SR = shouldConfirmSROld //On remet le settings comme il était
     }
 

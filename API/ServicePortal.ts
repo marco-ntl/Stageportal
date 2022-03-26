@@ -14,10 +14,11 @@ import { HomeTileIdentifiers } from "../const/HomeTileIdentifiers";
 import DB, { Tables } from "./db";
 import { Tile } from "../tables/Tile";
 import { Text } from "../const/Text";
-import { CUSTOM_IDs } from "../const/CustomIds";
+import { UNIQUE_IDS } from "../const/UniqueIDs";
 import { URLs } from "../const/URLs";
 import { Cookie } from "../types/Cookie";
 import { PromptFields } from "../const/PromptFIelds";
+import { SPInput } from "../types/SPInput";
 
 enum API {
     HOME = '/EndUser/ServiceCatalog',
@@ -35,7 +36,7 @@ export enum Selectors {
     FORM = '[name="requestForm"]', // /!\ Il faut vérifier si la page contient des tiles avant de vérifier si elle contient une form, car certaines form contiennent des tiles
     //MAIN_FORM_INPUT = 'textarea:visible, div.row.question input.form-control:visible, [type="radio"]:visible',
     MAIN_FORM_INPUT = '.active div.row.question', // data-fieldtype="System.SupportingItem.PortalControl.String" sont des "faux" inputs, qui servent uniquement à afficher des instructions à l'utilisateur
-    MAIN_FORM_INPUT_TITLE = '.active div.row.question .wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
+    MAIN_FORM_INPUT_TITLE = '.wrap-bl > span:first-of-type' /*'textarea, div.row.question input.form-control'*/,
     INPUT_SEARCH = '.selectCategoryInput',
     INPUT_SEARCH_VALUES = '.ui-grid-viewport .ui-grid-icon-singleselect',
     INPUT_SEARCH_SUBMIT_BTN = '.active .search-tbl',
@@ -179,7 +180,7 @@ export class ServicePortal {
         return await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT);
     }
 
-    static async GetFormInput(page: Page, index: number): Promise<ElementHandle<Element> | false> {
+    static async GetFormInput(page: Page, index: number): Promise<ElementHandle | false> {
         const tmp = await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT);
         if (!tmp)
             return false
@@ -190,13 +191,20 @@ export class ServicePortal {
         return tmp[index]
     }
 
-    static async GetFormTitles(page: Page): Promise<(string | false)[]> {
+    /*static async GetFormTitles(page: Page): Promise<(string | false)[]> {
         let elems = await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT_TITLE);
         if (!elems)
             return [false]
         return await Promise.all(elems.map(async el => await Misc.GetTextFromElement(el)))
-    }
+    }*/
 
+    static async GetTitleFromInput(input:ElementHandle):Promise<false|string>{
+        const titleElem = await input.$(Selectors.MAIN_FORM_INPUT_TITLE)
+        if(!titleElem)
+            return false
+        return await Misc.GetTextFromElement(titleElem)
+    }
+    /*
     static async GetInputTitle(page: Page, index: false | number = false): Promise<string | false> {
         let elems = await this.GetMatchingElements(page, Selectors.MAIN_FORM_INPUT_TITLE);
         if (!elems)
@@ -208,7 +216,7 @@ export class ServicePortal {
             return title[0]
         else
             return title[index]
-    }
+    }*/
 
     static async GetMatchingElements(page: Page, selector: string, index: false | number = false): Promise<ElementHandle<Element>[] | false> {
 
@@ -227,7 +235,7 @@ export class ServicePortal {
             return //Pas d'erreur, certaines pages contiennent des tiles mais pas d'header (eg. windows store)
         let i = 0
         for (let header of headers) {
-            const id = await Misc.SetElemID(header, CUSTOM_IDs.FOLD_HEADER + i)
+            const id = await Misc.SetElemID(header, UNIQUE_IDS.FOLD_HEADER + i)
             await Misc.ClickOnElem(page, id)
             i++
         }
@@ -280,29 +288,28 @@ export class ServicePortal {
         }
     }
 
-    static async FillSearchInputAndGetResults(page: Page, inputSelector: string, searchBtnID: string, value: string): Promise<boolean | string[][]> {
-        await Misc.FocusElemAndType(page, inputSelector, value)
+    static async FillSearchInputAndGetResults(page: Page, input:SPInput, searchBtnID: string, value: string): Promise<boolean | string[][]> {
+        await Misc.FocusElemAndType(page, input.innerInput.id, value)
         await Misc.ClickOnElem(page, searchBtnID)
         const networkResponse = await page.waitForResponse(response => response.url().includes(API.GET_SEARCH_RESULTS))
         return await this.ParseSearchResponse(networkResponse)
     }
 
-    static async SetInputValue(page: Page, inputSelector: string | string[], value: boolean | string, searchBtnID: string | undefined = undefined): Promise<boolean | string[][]> {
-        if (!Array.isArray(inputSelector))
-            inputSelector = [inputSelector]
+    static async SetInputValue(page:Page, input:SPInput, value: boolean | string): Promise<boolean | string[][]> {
+        switch (input.type) {
 
-        const inputType = await this.GetInputType(page, inputSelector[0])
-        switch (inputType) {
-            case INPUT_TYPES.Radio:
+            case INPUT_TYPES.Radio: //Valeur -> Booléen
                 if (typeof value !== "boolean")
                     throw new TypeError("Résultat du prompt inattendu. \"Booléen\" attendu.")
+                if (!input.secondInnerInput)
+                    throw new Error("Il manque une valeur pour le Radio input")
                 if (value)
-                    Misc.ClickOnElem(page, inputSelector[0])
+                    Misc.ClickOnElem(page, input.innerInput.id)
                 else
-                    Misc.ClickOnElem(page, inputSelector[1])
+                    Misc.ClickOnElem(page, input.secondInnerInput.id)
                 return true
 
-            case INPUT_TYPES.Select:
+            case INPUT_TYPES.Select: //Valeur -> Sélecteur de la valeur désirée
                 if (typeof value !== "string")
                     throw new TypeError("Résultat du prompt inattendu. \"String\" attendu.")
                 const elem = await Misc.GetElemBySelector(page, value)
@@ -311,18 +318,20 @@ export class ServicePortal {
                 await Misc.ClickOnElem(page, value)
                 return true
 
-            case INPUT_TYPES.Text:
+            case INPUT_TYPES.Text: //Valeur -> Texte à tapper
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
-                await Misc.FocusElemAndType(page, inputSelector[0], value)
+                await Misc.FocusElemAndType(page, input.innerInput.id, value)
                 return true
 
             case INPUT_TYPES.Search:
+                const searchBtnID = await Misc.SetElemID(await this.GetSearchBtn(input), input.inputBlock.id + UNIQUE_IDS.SEARCH_BTN)
                 if (typeof value !== "string")
                     throw new Error("Résultat du prompt inattendu. \"String\" attendu.")
                 if (!searchBtnID)
                     throw new Error("Pas trouvé le bouton de recherche")
-                return await this.FillSearchInputAndGetResults(page, inputSelector[0], searchBtnID, value)
+
+                return await this.FillSearchInputAndGetResults(page, input, searchBtnID, value)
 
             case INPUT_TYPES.Unknown:
             default:
@@ -331,141 +340,110 @@ export class ServicePortal {
         }
     }
 
-    static async IsInputRequired(page: Page, inputSelector: string): Promise<boolean> {
-        const input = await Misc.GetElemBySelector(page, inputSelector)
-        if (!input)
-            throw new Error("Pas trouvé d'input correspondant au sélecteur " + inputSelector)
-        return await input.evaluate((el, selector) => (el.querySelector(selector) !== null), Selectors.CLASS_INPUT_REQUIRED)
+    static async IsInputRequired(input:ElementHandle): Promise<boolean> {
+        return (await input.$(Selectors.CLASS_INPUT_REQUIRED)) !== null
     }
-    static async IsAlreadyValidSearch(page: Page, input: ElementHandle): Promise<boolean> //Certains input de recherche (eg. "Operating System Build" dans stock device) ont déjà une valeur séléctionnée
+
+    static async IsAlreadyValidSearch(input: SPInput): Promise<boolean> //Certains input de recherche (eg. "Operating System Build" dans stock device) ont déjà une valeur séléctionnée
     {
-        const SelectedValue = await input.$(Selectors.SEARCH_SELECTED_VALUE)
+        const SelectedValue = await input.inputBlock.elem.$(Selectors.SEARCH_SELECTED_VALUE)
         return (SelectedValue !== null)
     }
-    static async GetSearchBtn(parent: ElementHandle<Element>) {
-        const searchBtn = await parent.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
+
+    static async GetSearchBtn(input: SPInput) {
+        const searchBtn = await input.inputBlock.elem.$(Selectors.INPUT_SEARCH_SUBMIT_BTN)
         if (!searchBtn)
             throw new Error("Pas trouvé le bouton de recherche")
         return searchBtn
     }
-    static async FillInputAndGetNextInputIndexAndValue(page: Page, stepID: string, inputIndex: number, value: string | boolean | undefined = undefined): Promise<{ value: boolean | string, index: number }> {
-        let canceled = false
-        const options: PromptOptions = { onCancel: () => canceled = true }
-        const input = await this.GetFormInput(page, inputIndex)
-        if (!input)
-            throw new Error("Pas réussi à récupérer l'input n°" + inputIndex)
 
-        const innerInput = await input.$(Selectors.INNER_INPUT)
-        if (!innerInput)
-            return await this.FillInputAndGetNextInputIndexAndValue(page, stepID, ++inputIndex, value) //Il y a de "faux" inputs (Eg. run predefined script) qui ne contiennent que du texte, si c'est le cas on skip l'élément
-
-        const title = (await ServicePortal.GetInputTitle(page, inputIndex))
-
-        const inputID = [await Misc.SetElemID(input, stepID + CUSTOM_IDs.INPUT + inputIndex)]
-        const innerInputId = [await Misc.SetElemID(innerInput, stepID + CUSTOM_IDs.INNER_INPUT + inputIndex)]
-        let searchBtnID = undefined
-
-        if (!title)
-            throw new Error("Pas trouvé le titre de l'input")
-
-        const inputType = await this.GetInputType(page, inputID[0])
-        if (!inputType)
-            throw new Error("Pas trouvé le type de l'input")
-
-        if (inputType === INPUT_TYPES.Select)
-            await this.CreateChoicesFromSelect(page, innerInputId[0]) //NÉCÉSSAIRE; La fonction donne des IDs uniques aux choix du select
-
-        if (value === undefined) {
-            let prompt = await ServicePortal.CreatePromptFromInput(page, innerInputId[0], title, 'TMP')
-            value = (await prompts(prompt, options))['TMP'] as string | boolean
-        }
-        if (canceled)
-            return { value: false, index: -1 }
-
-        switch (inputType) {
-            case INPUT_TYPES.Radio: //Si l'input est de type Radio, il faut sélectionner deux valeurs : Oui et Non
-                const radios = await input.$$(Selectors.INNER_INPUT)
-                if (!radios || radios.length < 2)
-                    throw new Error("Pas trouvé le second radio input")
-                innerInputId.push(await Misc.SetElemID(radios[1], stepID + CUSTOM_IDs.INNER_INPUT + inputIndex))
-                break;
-            case INPUT_TYPES.Search:
-                searchBtnID = await Misc.SetElemID(await this.GetSearchBtn(input), stepID + CUSTOM_IDs.SEARCH_BTN + inputIndex)
-                break;
-        }
-
-        if (innerInputId.length <= 0)
-            throw new Error("Pas réussi à trouver l'input")
-
-        let response = await this.SetInputValue(page, innerInputId, value, searchBtnID)
-
-        if (inputType === INPUT_TYPES.Search) {
+    static async FillInput(page: Page, input:SPInput, value: string | boolean): Promise<boolean | string>{
+        let response = await this.SetInputValue(page, input, value)
+        if (input.type === INPUT_TYPES.Search) {
             if (response === false) {
                 console.log("Aucun résultats")
-                await Misc.ClearTextbox(page, innerInputId[0])
-                return await ServicePortal.FillInputAndGetNextInputIndexAndValue(page, stepID, inputIndex)
+                await Misc.ClearTextbox(page, input.innerInput.id)
+                return await ServicePortal.FillInput(page, input, await ServicePortal.AskValueFromUser(input)) //Si pas de résultats, on redemande à l'utilisateur puis on recommence
             }
             //Si l'utilisateur a fait une recherche et il y a plus d'un résultat 
             if (Array.isArray(response)) {
-                value = await this.HandleSearchResults(page, stepID + CUSTOM_IDs.SEARCH_RESULTS + inputIndex, input, innerInputId[0], response)
+                value = await this.HandleSearchResults(page, input, response)
             }
         }
-        inputIndex++ //On retourne l'index du prochain élément ; Cela est nécessaire à cause des Radios buttons (voir 16 lignes au dessus)
-        return { value: value, index: inputIndex }
+        return value
     }
 
-    static async FillForm(page: Page, stepNumber: number, startIndex: number = 0, fillOnlyOneInput = false, values: undefined | any | any[] = undefined): Promise<false | { value: string | boolean, index: number }[]> { //Si fillOneInput = true, on set seulement l'input à startingIndex
-        let i = startIndex,
+    static async AskValueFromUser(input:SPInput):Promise<string | boolean | 'canceled'>{
+        let canceled = false
+        const options: PromptOptions = { onCancel: () => canceled = true }
+
+        if (input.type === INPUT_TYPES.Select)
+            await this.CreateChoicesFromSelect(input) //NÉCÉSSAIRE; La fonction donne des IDs uniques aux choix du select
+
+        const prompt = await ServicePortal.CreatePromptFromInput(input, 'TMP')
+        const value = (await prompts(prompt, options))['TMP'] as string | boolean
+        if (canceled)
+            return 'canceled'
+        return value
+    }
+
+
+    static async FillForm(page: Page, stepNumber: number, startIndex: number = 0, fillOnlyOneInput = false, values: undefined | any | any[] = undefined): Promise<false | {values:(string | boolean)[],nextIndex:number}> { //Si fillOneInput = true, on set seulement l'input à startingIndex
+        let inputIndex = startIndex,
             validInputIndex = 0,
-            input: ElementHandle<Element> | ElementHandle<Element>[] | false,
+            rawInput:ElementHandle | false,
+            input: SPInput | false,
             promptAnswer,
             answers = [],
             tmpVal = undefined
-        const STEP_ID = CUSTOM_IDs.STEP + stepNumber
+        const STEP_ID = UNIQUE_IDS.STEP + stepNumber
+
         if (values && !Array.isArray(values))
             values = [values]
         await Misc.sleep(1000) //@TODO trouver quelque chose de plus solide. Nécessaire car certaines forms (eg assign) chargent d'abord une étape "get user"
-        while (input = (await ServicePortal.GetFormInput(page, i))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
-            if (await this.IsAlreadyValidSearch(page, input)) { //@TODO Trouver quelque chose de plus solide ? (nécessaire???). Les inputs "Search" qui commencent avec une valeur présélectionnée devraient généralement être remplacés par des selects
-                i++
+        while (rawInput = (await ServicePortal.GetFormInput(page, inputIndex))) { // GetFormInputs retourne False quand aucun élément n'est trouvé. L'évaluation d'une assignation en JS retourne la valeur assignée
+            input = await SPInput.new(rawInput, STEP_ID + UNIQUE_IDS.INPUT + inputIndex)
+            if (!input || await this.IsAlreadyValidSearch(input)) { //@TODO Trouver quelque chose de plus solide ? (nécessaire???). Les inputs "Search" qui commencent avec une valeur présélectionnée devraient généralement être remplacés par des selects
+                inputIndex++
                 continue;
             }
 
-            if (!values)
-                tmpVal = undefined
-            else if (!values[validInputIndex]) {
-                console.log("Pas assez de valeurs pour remplir la form automatiquement")
-                tmpVal = undefined
-            } else
+            if (!values || !values[validInputIndex])
+                tmpVal = await ServicePortal.AskValueFromUser(input)
+            else
                 tmpVal = values[validInputIndex]
+            
+            promptAnswer = await this.FillInput(page, input, tmpVal)
 
-            promptAnswer = await this.FillInputAndGetNextInputIndexAndValue(page, STEP_ID, i, tmpVal)
-            if (promptAnswer.value === false || !promptAnswer.index) //User cancelled
-                return false
             if(validInputIndex === 0 && stepNumber === 0){
                 //await Misc.waitForNetworkIdle(page, 10000, 1500, 500, 2)
                 //await Misc.waitForNetworkIdle(page)
                 await Misc.sleep(350) //@MALDETETE rien d'autre fonctionne @TODO plus solide????))
             }
-            i = promptAnswer.index
+
             answers.push(promptAnswer)
-            if (fillOnlyOneInput)
-                return answers
+
+            inputIndex++ //On incrémente avant un potentiel retour, car on veut retourner l'index de l'élément suivant
             validInputIndex++
+
+            if (fillOnlyOneInput)
+                return {values:answers,nextIndex:inputIndex}
+
         }
-        return answers
+        return {values:answers,nextIndex:inputIndex}
 
     }
 
-    static async HandleSearchResults(page: Page, stepID: string, parentDiv: ElementHandle<Element>, inputID: string, response: string[][]): Promise<string> {
+    
+    static async HandleSearchResults(page: Page, input:SPInput, response: string[][]): Promise<string> {
         let choices: Choice[] = []
         const lines = Misc.FormatStringRows(response)
         for (let i = 0; i < response.length; i++)
             choices.push({ title: lines[i], value: i })
 
-        const prompt = await ServicePortal.CreatePromptFromInput(page, inputID, "Résultats de la recherche :", 'TMP', choices)
+        const prompt = await ServicePortal.CreatePromptFromInput(input, 'TMP',"Résultats de la recherche :", choices)
         let answerIndex = (await prompts(prompt))['TMP']
-        const searchResults = await parentDiv.$$(Selectors.INPUT_SEARCH_VALUES)
+        const searchResults = await input.inputBlock.elem.$$(Selectors.INPUT_SEARCH_VALUES)
         if (!searchResults || searchResults.length < answerIndex)
             throw new Error("Failed to select search values")
         if (ServicePortal.Settings.SHOULD_SEARCH_RESULTS_HAVE_HEADERS) {
@@ -474,7 +452,7 @@ export class ServicePortal {
             else
                 answerIndex = parseInt(answerIndex) - 1
         }
-        const answerID = await Misc.SetElemID(searchResults[answerIndex], stepID + CUSTOM_IDs.SELECTED_VALUE)
+        const answerID = await Misc.SetElemID(searchResults[answerIndex], input.inputBlock.id + UNIQUE_IDS.SELECTED_VALUE)
         await Misc.ClickOnElem(page, answerID)
         return answerID
     }
@@ -507,9 +485,9 @@ export class ServicePortal {
 
     static async GoToFormNextStep(page: Page, stepNumber: number): Promise<boolean | string> {
         const nextStepBtn = await page.$(Selectors.BUTTON_NEXT)
-        const STEP_ID = CUSTOM_IDs.STEP + stepNumber
+        const STEP_ID = UNIQUE_IDS.STEP + stepNumber
         if (nextStepBtn) {
-            const currID = await Misc.SetElemID(nextStepBtn, STEP_ID + CUSTOM_IDs.CURRENT_NEXT_STEP_BTN)
+            const currID = await Misc.SetElemID(nextStepBtn, STEP_ID + UNIQUE_IDS.CURRENT_NEXT_STEP_BTN)
             const notCurrentID = ':not(' + currID + ')'
             await Misc.ClickAndWaitForSelector(page, currID, `${Selectors.BUTTON_NEXT + notCurrentID}, ${Selectors.BUTTON_SUBMIT + notCurrentID}`) //On clique sur le bouton "next step", puis on attends que le prochain bouton (next ou submit) charge (waitForNavigation NOK car l'application est en Single-Page)
             return true
@@ -517,7 +495,7 @@ export class ServicePortal {
         const submitBtn = await Misc.GetElemBySelector(page, Selectors.BUTTON_SUBMIT)
         if (!submitBtn)
             return false
-        const currID = await Misc.SetElemID(submitBtn, STEP_ID + CUSTOM_IDs.CURRENT_SUBMIT_BTN)
+        const currID = await Misc.SetElemID(submitBtn, STEP_ID + UNIQUE_IDS.CURRENT_SUBMIT_BTN)
         return await this.SubmitAndGetSR(page, currID)
     }
 
@@ -525,11 +503,11 @@ export class ServicePortal {
         const result: Choice[] = [];
         let tileText: TileTextInfo | false,
             i = 0,
-            shouldSetIDs = !(await Misc.ElementExists(page, `#${CUSTOM_IDs.TILE}0`)), //Évite d'avoir à communiquer avec la page lorsque pas nécessaire
+            shouldSetIDs = !(await Misc.ElementExists(page, `#${UNIQUE_IDS.TILE}0`)), //Évite d'avoir à communiquer avec la page lorsque pas nécessaire
             currTileID: string
 
         for (let tile of tiles) {
-            currTileID = CUSTOM_IDs.TILE + i
+            currTileID = UNIQUE_IDS.TILE + i
             if (shouldSetIDs)
                 currTileID = await Misc.SetElemID(tile, currTileID)
             else
@@ -548,20 +526,20 @@ export class ServicePortal {
         return await choices.filter(elem => Misc.IncludesAll(`${elem.title} ${elem?.description}`, input.split(' ')))
     }
 
-    static async GetValuesElementsFromSelectInput(page: Page, inputSelector: string): Promise<ElementHandle[]> {
-        const valuesList = await Misc.GetMultipleElemsBySelector(page, `${inputSelector} + ${Selectors.INPUT_SELECT_VALUES}`) //Le sélecteur + séléctionne les siblings
+    static async GetValuesElementsFromSelectInput(input: SPInput): Promise<ElementHandle[]> {
+        const valuesList = await input.inputBlock.elem.$$(input.innerInput.id + ' + ' + Selectors.INPUT_SELECT_VALUES) //Le sélecteur + séléctionne les siblings
         if (!valuesList || valuesList.length <= 0)
-            throw new Error("Pas réussi à récupérer les values du select " + inputSelector)
+            throw new Error("Pas réussi à récupérer les values du select " + input)
         return valuesList
     }
 
-    static async CreateChoicesFromSelect(page: Page, inputSelector: string): Promise<Choice[]> {
-        const elems = await this.GetValuesElementsFromSelectInput(page, inputSelector)
+    static async CreateChoicesFromSelect(input: SPInput): Promise<Choice[]> {
+        const elems = await this.GetValuesElementsFromSelectInput(input)
         if (!elems)
-            throw new Error("Pas trouvé les valeurs du select " + inputSelector)
+            throw new Error("Pas trouvé les valeurs du select " + input)
         return await Promise.all(elems.map(
             async function (elem: ElementHandle, i: number): Promise<Choice> {
-                const elemID = await Misc.SetElemID(elem, inputSelector.slice(1) + CUSTOM_IDs.INPUT_SELECT_VALUES + i) //On enlève le '#' du sélecteur parent. Il est important de garder la hiérarchie entière, pour éviter d'avoir des ID en doubles
+                const elemID = await Misc.SetElemID(elem, input.inputBlock.id.slice(1) + UNIQUE_IDS.INPUT_SELECT_VALUES + i) //On enlève le '#' du sélecteur parent. Il est important de garder la hiérarchie entière, pour éviter d'avoir des ID en doubles
                 const text = await Misc.GetTextFromElement(elem)
                 if (!text)
                     throw new Error("Pas réussi à récupérer les choix du select");
@@ -569,23 +547,20 @@ export class ServicePortal {
             }))
     }
 
-    static async CreatePromptFromInput(page: Page, inputSelector: string, text: string, name: string, choices: Choice[] | undefined = undefined, desiredType: INPUT_TYPES | false = false): Promise<Prompt> {
-        const inputType: INPUT_TYPES = (!desiredType) ? await this.GetInputType(page, inputSelector) : desiredType
-        const inputRquired = await this.IsInputRequired(page, inputSelector) //@TODO pas fiable (Eg. "Select device" dans run predefined script n'est pas affiché comme requis)
-        if (!inputType)
-            throw new Error("Pas trouvé le type de l'input")
-        if (inputType === INPUT_TYPES.Select)
-            choices = await this.CreateChoicesFromSelect(page, inputSelector)
+    static async CreatePromptFromInput(input:SPInput, name: string, text?:string, choices?: Choice[]): Promise<Prompt> {
+        if (input.type === INPUT_TYPES.Select)
+            choices = await this.CreateChoicesFromSelect(input)
 
         let type: PromptTypes
 
-        if (inputType as INPUT_TYPES == INPUT_TYPES.Search && choices !== undefined)
+        if (input.type === INPUT_TYPES.Search && choices !== undefined)
             type = PromptTypes.autocomplete
         else
-            type = await this.GetPromptTypeFromInputType(inputType)
-        const shouldValidate = inputRquired && (inputType !== INPUT_TYPES.Radio && inputType !== INPUT_TYPES.Button && INPUT_TYPES.Unknown)
+            type = await this.GetPromptTypeFromInputType(input.type)
+
+        const shouldValidate = input.required && (input.type !== INPUT_TYPES.Radio && input.type !== INPUT_TYPES.Button && INPUT_TYPES.Unknown)
         return {
-            message: text + ((inputRquired) ? Text.INPUT_REQUIRED : ''),
+            message: input.title + ((input.required) ? Text.INPUT_REQUIRED : ''),
             name: name,
             type: type,
             choices: choices,
@@ -598,10 +573,7 @@ export class ServicePortal {
         return (value.length >= 3) ? true : Text.INPUT_INVALID
     }
 
-    static async GetInputType(page: Page, inputSelector: string): Promise<INPUT_TYPES> {
-        let input = await Misc.GetElemBySelector(page, inputSelector)
-        if (!input)
-            throw new Error("Pas réussi à trouver l'élément à partir du selecteur")
+    static async GetInputType(input: ElementHandle): Promise<INPUT_TYPES> {
         return await input.evaluate(
             function (el: Element, types: [Selectors, INPUT_TYPES][], notFoundVal: INPUT_TYPES.Unknown): INPUT_TYPES {
                 for (let type of types) {
