@@ -1,4 +1,4 @@
-export enum CUSTOM_IDs {
+export enum UNIQUE_IDS {
     TILE = 'SPtile',
     INPUT = 'SPinput',
     INNER_INPUT = 'SPinner',
