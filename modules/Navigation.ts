@@ -23,7 +23,7 @@ class Navigation implements IModule {
     };
     hidden: boolean = true
     fs = require('fs')
-    moduleType?: CoreModules = CoreModules.Nav
+    moduleType = CoreModules.Nav
     modules: IModule[] = []
 
     async run(browser: Browser): Promise<void> {
@@ -44,6 +44,12 @@ class Navigation implements IModule {
         }
     }
 
+    /**
+     * Charge tous les modules dans ./modules dans this.modules
+     *
+     * @private
+     * @memberof Navigation
+     */
     private async LoadAllModules() {
         if (this.modules.length > 0)
             throw new Error("Les modules ont déjà été chargés")
@@ -51,13 +57,9 @@ class Navigation implements IModule {
         if(!fs.existsSync(modulePath)) //L'application run à travers node.exe
             modulePath = './build/modules'
         let files = fs.readdirSync(modulePath)
-        //files.map(console.log)
         files = files.filter(file => file.endsWith('.js') || file.endsWith('.ts')) //On récupère les fichiers .ts (ou .js pour le packaging)
-        //console.log("Found " + files.length + " modules")
         for (let file of files) {
             try {
-                //console.log(`${modulePath}/${file}`)
-                //console.log(require.resolve(`${modulePath}/${file}`))
                 const tmp = require('./' + path.parse(file).name)
                 if(isModule(tmp)){
                     this.modules.push(tmp)
@@ -69,6 +71,15 @@ class Navigation implements IModule {
         }
     }
 
+    /**
+     * Retourne le module correspondant, sous forme d'IModule
+     *
+     * @private
+     * @template T Le type du module
+     * @param {CoreModules} modType Le module désiré
+     * @return {*}  {(Promise<false | T>)} Le module as T
+     * @memberof Navigation
+     */
     private async GetModule<T>(modType: CoreModules): Promise<false | T> {
         const mod = this.modules.find(mod => mod?.moduleType === modType)
         if (!mod)
@@ -76,6 +87,14 @@ class Navigation implements IModule {
         return ((mod as any) as T)
     }
 
+    /**
+     * Lance le module de login SRG
+     *
+     * @private
+     * @param {Browser} browser Le browser sur lequel lancer le module
+     * @return {*} 
+     * @memberof Navigation
+     */
     private async StartSRGLogin(browser: Browser) {
         const SRGModule = await this.GetModule<typeof SRGLogin>(CoreModules.SRGLogin)
         if (!SRGModule)
@@ -83,6 +102,13 @@ class Navigation implements IModule {
         return await SRGModule.run(browser)
     }
 
+    /**
+     * Créer une liste de choix à partir de this.modules
+     *
+     * @private
+     * @return {*}  {Promise<void>}
+     * @memberof Navigation
+     */
     private async MakeChoicesFromModules(): Promise<void> {
         (this.promptsTemplate.SELECT_MODULE as any).choices = this.modules.filter(x => !x.hidden).map(
             (module: IModule): Choice => {

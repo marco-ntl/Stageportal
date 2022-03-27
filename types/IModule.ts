@@ -4,7 +4,6 @@ import { Browser, Page } from "puppeteer";
 export interface IModule {
     name:string
     description:string
-    helpStr?:string
     promptsTemplate?: IDictionary<Prompt | Prompt[]>
     run(browser?:Browser, page?:Page):Promise<any> | void //@TODO Retirer l'argument browser ??
     hidden?:boolean
@@ -28,9 +27,6 @@ export type IDictionary<T> = {
 export enum CoreModules{
     Nav = 'navigation',
     SRGLogin = 'srgLogin',
-    Assign = 'assign',
-    Manual = 'manual',
-    
 }
 
 export function isModule(obj:any):obj is IModule {

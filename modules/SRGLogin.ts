@@ -36,6 +36,13 @@ class SRGLogin implements IModule {
         return this.page
     }
 
+    /**
+     * Valide le One Time Password
+     *
+     * @param {string} value
+     * @return {*}  {(boolean | string)}
+     * @memberof SRGLogin
+     */
     validateOTP(value: string): boolean | string {
         return /^\D+$/.test(value) ? 'Le code ne peut contenir que des chiffres' :
             value.length < 6 ? 'Code trop court' :
@@ -44,10 +51,22 @@ class SRGLogin implements IModule {
     }
 
 
+    /**
+     * Check si la page est actuellement sur le login SSO SRG
+     *
+     * @return {*}  {boolean}
+     * @memberof SRGLogin
+     */
     isSSRLogin(): boolean {
         return (this.page as Page).url().includes(URLs.SRG_AUTH);
     }
 
+    /**
+     * Remplit et envoie le formulaire de connexion
+     *
+     * @return {*}  {Promise<void>}
+     * @memberof SRGLogin
+     */
     async SSRLogin(): Promise<void> {
         const page = (this.page as Page);
         await page.waitForSelector(Selectors.AUTH_SUBMIT);
